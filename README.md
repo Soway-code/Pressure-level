@@ -2,11 +2,8 @@
 Pressure level measurement of liquid
 
 #Note：
-<<<<<<< HEAD
-  目前处于开发阶段，所以代码及版本控制都在Develop分支进行；
 
-=======
-  目前处于开发阶段，所有代码版本控制在此分支进行；
-  update
-   update
->>>>>>> upstream/Develop
+  目前处于开发阶段，所有代码及版本控制都在Develop分支进行；
+
+
+
