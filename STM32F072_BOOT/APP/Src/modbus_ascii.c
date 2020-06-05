@@ -254,6 +254,7 @@ uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
 */
 uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
 {
+    uint8_t result;
     uint8_t cyLrc;
     uint16_t cyAsciiLen;
 	
@@ -279,7 +280,13 @@ uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
     Send_Buf[cyAsciiLen] = 0x0A;
     cyAsciiLen++;
     
+    while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
+    Sensor_USART_Clear_TX_Cplt_Flag();
+#ifdef  USART_USING_485
     TX_ON;
-    return BSP_UART_Transmit_DMA(Send_Buf, cyAsciiLen);
+#endif
+    result = BSP_UART_Transmit_DMA(Send_Buf, cyAsciiLen);
+    
+    return result;
 }
 
