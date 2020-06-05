@@ -51,7 +51,7 @@ uint8_t InFlash_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
     HAL_FLASH_Unlock();
     for(i = 0; i < FLASH_PAGE_SIZE; i += 4)
     {
-        Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, 
+        Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, \
                                         (WrAddr + i) + FLASH_BASE_ADDRESS, (uint32_t)Flash_Buf[i / 4]);
         if(HAL_OK != Halstatus)
             break;

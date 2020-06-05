@@ -1,14 +1,14 @@
-"D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armproc.dll" 
+"D:\Embedded Workbench 8.1\arm\bin\armproc.dll" 
 
-"D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armjlink2.dll" 
+"D:\Embedded Workbench 8.1\arm\bin\armjlink2.dll" 
 
-"E:\STM32F072cube_project\Cap_Sensor\EWARM\Cap_Sensor\Exe\Cap_Sensor.out" 
+"E:\project_repo\Pressure-level\Cap_Sensor\EWARM\Cap_Sensor\Exe\Cap_Sensor.out" 
 
---plugin="D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armbat.dll" 
+--plugin="D:\Embedded Workbench 8.1\arm\bin\armbat.dll" 
 
---device_macro="D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\config\debugger\ST\STM32F0xx.dmac" 
+--device_macro="D:\Embedded Workbench 8.1\arm\config\debugger\ST\STM32F0xx.dmac" 
 
---flash_loader="D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\config\flashloader\ST\FlashSTM32F07xxB.board" 
+--flash_loader="D:\Embedded Workbench 8.1\arm\config\flashloader\ST\FlashSTM32F07xxB.board" 
 
 
 

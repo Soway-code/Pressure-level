@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --backend -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
+"D:\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\project_repo\Pressure-level\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --backend -f "E:\project_repo\Pressure-level\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" "--debug_file=%~1" --backend -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
+"D:\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\project_repo\Pressure-level\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" "--debug_file=%~1" --backend -f "E:\project_repo\Pressure-level\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
 
 @echo off 
 :end
