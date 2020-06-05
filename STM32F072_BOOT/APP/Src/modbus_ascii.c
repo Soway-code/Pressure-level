@@ -2,14 +2,15 @@
 * @brief        ModBus ASCII数据处理
 * @details      ModBus ASCII数据与ModBus RTU数据互转
 * @author       杨春林
-* @date         2020-06-04
-* @version      V1.0.0
+* @date         2020-06-05
+* @version      V1.0.1
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
 * <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/06/04  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><td>2020/06/05  <td>1.0.1    <td>杨春林    <td>对MODBUS_ASCII_SendData函数添加了等待串口DMA\n
+* 发送完毕的程序, 确保上一次数据发送完毕再发送本次的数据
 * </table>
 *
 **********************************************************************************
@@ -254,6 +255,7 @@ uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
 */
 uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
 {
+    uint8_t result;
     uint8_t cyLrc;
     uint16_t cyAsciiLen;
 	
@@ -279,7 +281,13 @@ uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
     Send_Buf[cyAsciiLen] = 0x0A;
     cyAsciiLen++;
     
+    while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
+    Sensor_USART_Clear_TX_Cplt_Flag();
+#ifdef  USART_USING_485
     TX_ON;
-    return BSP_UART_Transmit_DMA(Send_Buf, cyAsciiLen);
+#endif
+    result = BSP_UART_Transmit_DMA(Send_Buf, cyAsciiLen);
+    
+    return result;
 }
 
