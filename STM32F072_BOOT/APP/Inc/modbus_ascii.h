@@ -39,7 +39,9 @@
 #define ERR_LRC             2
 #define ERR_INVALID_DATA    3
 
-#define ASCII_HEAD_DATA   ':'           //包头第一个字节
+#define ASCII_HEAD_DATA         ':'         //包头第一个字节
+#define ASCII_TAIL_FIRST_DATA   '\r'        //包尾第一个字节
+#define ASCII_TAIL_SECOND_DATA  '\n'        //包尾第二个字节
 
 /**@brief       十六进制数转ASCII码
 * @param[in]    cyHexData : 十六进制数

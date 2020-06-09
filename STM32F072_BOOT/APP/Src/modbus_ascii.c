@@ -228,6 +228,13 @@ uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
     }
     recv_len = Sensor_USART_GetReceData(cyRecvBuff);
     
+    if((recv_len - 2) <= 0
+        || cyRecvBuff[0] != ASCII_HEAD_DATA
+        || cyRecvBuff[recv_len - 2] != ASCII_TAIL_FIRST_DATA)
+    {
+        return ERR_INVALID_DATA;
+    }
+    
     if (ERR_ASCII == MODBUS_ASCII_CheckAscii(&cyRecvBuff[1], recv_len - 3) )
     {
     	return ERR_ASCII;        
