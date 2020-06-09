@@ -220,15 +220,3 @@ void Check_Device_Param(void)
     InFlash_SystemParam_Check(Device_Param, PRO_DEFAULT_LEN);
 }
 
-/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
-#ifdef USING_RT_THREAD_OS
-#include <rtthread.h>
-
-int rt_check_device_param(void)
-{
-    Check_Device_Param();
-    
-    return RT_EOK;
-}
-INIT_BOARD_EXPORT(rt_check_device_param);
-#endif

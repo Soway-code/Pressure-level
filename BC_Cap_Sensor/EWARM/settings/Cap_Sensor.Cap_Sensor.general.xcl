@@ -2,7 +2,7 @@
 
 "D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armjlink2.dll" 
 
-"E:\STM32F072cube_project\Cap_Sensor\EWARM\Cap_Sensor\Exe\Cap_Sensor.out" 
+"E:\STM32F072cube_project\BC_Cap_Sensor\EWARM\Cap_Sensor\Exe\Cap_Sensor.out" 
 
 --plugin="D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armbat.dll" 
 

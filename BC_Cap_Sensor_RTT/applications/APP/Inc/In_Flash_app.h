@@ -19,8 +19,8 @@
 #include "In_Flash.h"
 #include "TypeConvert.h"
 
-
-#define RUN_ADDR_BASE                     0x00                                  ///< 系统参数初始化标志
+/***************************** 设备参数在内部Flash中的映射地址 ****************************/
+#define RUN_ADDR_BASE                     0x00                                  ///< 系统参数初始化标志/内部Flash起始地址
 #define DEVICE_ADDR                       (RUN_ADDR_BASE + 0x01)                ///< 设备地址
 #define BAUDRATE                          (DEVICE_ADDR   + 0x01)                ///< 波特率
 #define PARITY                            (BAUDRATE      + 0x01)                ///< 奇偶校验
@@ -29,9 +29,6 @@
 #define COMPENSATE                        (AUTO_UPLOAD   + 0x01)                ///< 补偿使能
 #define FREEZE                            (COMPENSATE    + 0x01)                ///< 是否冻结设备
 #define OUTPUTMODE                        (FREEZE        + 0x01)                ///< 输出方式
-
-#define USER_DEFAULT_LEN                  (OUTPUTMODE    + 0x01)                ///< 基本参数总长度   
-
 #define HEIGHTRANGE                       (OUTPUTMODE    + 0x01)                ///< 量程
 #define CAPMIN                            (HEIGHTRANGE   + 0x02)                ///< 零点电容
 #define CAPMAX                            (CAPMIN        + 0x04)                ///< 满量程电容
@@ -56,12 +53,8 @@
 #define SYSTEMPARAM_PROGRAMED             (TEMPER_B2     + 0x02)                /** 用于检查Flash标定参数区
                                                                                 是否被写入过初始值，值为
                                                                                 0xAA则写入过 */
-#define PRO_DEFAULT_LEN                   (SYSTEMPARAM_PROGRAMED + 0x01)        ///< 默认参数总长度   
-
-#define SYSTEMPARAM_IS_PROGRAMED          0xAA                                  ///< 写入初始值标志
-
-#define SYSTEM_PARAM_BAK1                 (RUN_ADDR_BASE     + FLASH_PAGE_SIZE) ///< 系统参数备份1
-#define SYSTEM_PARAM_BAK2                 (SYSTEM_PARAM_BAK1 + FLASH_PAGE_SIZE) ///< 系统参数备份2
+#define SYSTEM_PARAM_BAK1                 (RUN_ADDR_BASE     + FLASH_PAGE_SIZE) ///< 系统参数备份1起始地址
+#define SYSTEM_PARAM_BAK2                 (SYSTEM_PARAM_BAK1 + FLASH_PAGE_SIZE) ///< 系统参数备份2起始地址     
 
 #define ORGANIZATION                       0x0400                               ///< 组织机构代码
 #define PRODUCTION                        (ORGANIZATION  + 0x30)                ///< 产品代码
@@ -69,6 +62,16 @@
 #define SOFTWAREVER                       (HARDWAREVER   + 0x30)                ///< 软件版本
 #define DEVICENUM                         (SOFTWAREVER   + 0x20)                ///< 设备ID
 #define CUSTOMER                          (DEVICENUM     + 0x30)                ///< 客户代码
+
+
+/***************************** 设备参数占用存储空间的长度 ****************************/                                                                      
+#define USER_DEFAULT_LEN                  (OUTPUTMODE    + 0x01)                ///< 基本参数总长度   
+#define PRO_DEFAULT_LEN                   (SYSTEMPARAM_PROGRAMED + 0x01)        ///< 全部参数总长度   
+
+
+/********************************** Flash写入标志值 *********************************/   
+#define SYSTEMPARAM_IS_PROGRAMED          0xAA                                  ///< 写入初始值标志
+
 
 
 /**@brief       向STM32F072xx内部Flash指定位置写多个字节且备份3份

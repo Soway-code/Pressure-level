@@ -23,9 +23,9 @@
 
 if ($debugfile -eq "")
 {
-& "D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --backend -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
+& "D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\BC_Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --backend -f "E:\STM32F072cube_project\BC_Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
 }
 else
 {
-& "D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --debug_file=$debugfile --backend -f "E:\STM32F072cube_project\Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
+& "D:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "E:\STM32F072cube_project\BC_Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.general.xcl" --debug_file=$debugfile --backend -f "E:\STM32F072cube_project\BC_Cap_Sensor\EWARM\settings\Cap_Sensor.Cap_Sensor.driver.xcl" 
 }

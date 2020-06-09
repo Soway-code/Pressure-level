@@ -26,7 +26,7 @@
 #include "adc_app.h"
 
 
-#define DAC_VALUE_MAX   4096        ///< DAC最大值
+#define DAC_VALUE_MAX   4095        ///< DAC最大值
 
 /** ModBus管理设备的参数结构,可根据不同的产品加入或删除成员 */
 typedef struct {

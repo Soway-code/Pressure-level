@@ -34,10 +34,6 @@ static uint16_t Calib_ADHigh;                   ///< 标定电容AD上刻度
 static uint16_t Calib_ADMax;                    ///< 标定电容AD满量程
 static uint8_t CapDA_ClibFlag = CALIB_CLEAR;    
 
-///< 软件版本号 格式:版本号长度，版本号内容
-const uint8_t SensorSoftVersion[8] = {0x07, 'S', 'V', '1', '.', '0', '.', '5'};
-
-
 //Modbus 串口重新初始化回调函数
 static int MB_USART_ReInit(ModBusBaseParam_TypeDef *ModBusBaseParam);
 
@@ -1197,7 +1193,13 @@ void ModbusFunc2A(ModBusBaseParam_TypeDef *ModBusBaseParam)
         break;
         //软件版本    
         case 0x00E3:
-            //                                                                                                    
+            if(0x2F < objlen)
+            {
+                j += objlen;
+                break;
+            }
+            InFlash_Write_MultiBytes(SOFTWAREVER, 
+                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                  
             j += objlen;
         break;
         //设备ID    
@@ -1305,14 +1307,18 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
             ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
         break;
         //软件版本 
-        case 0x00E3:                                                    
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = SensorSoftVersion[0];
-
-            for(objlen = 0; objlen < 7; objlen++)                                                        
+        case 0x00E3:                        
+            objlen = InFlash_Read_OneByte(SOFTWAREVER);
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+            if((objlen > (SEND_SIZE / 3))||(0 == objlen))
             {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] 
-                    = SensorSoftVersion[objlen + 1];
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                break;
             }
+            InFlash_Read_MultiBytes((SOFTWAREVER + 1), 
+                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
         break;
         //设备ID  
         case 0x00E4:
@@ -1563,7 +1569,7 @@ void MB_TempDAOut_Calibration(void *arg)
     
     Device_Param = (ModBus_Device_Param *)arg;
     //如果温度DA标定值有效就写入内部Flash
-    if((Calib_TempDAMax > Calib_TempDAMin) && (DAC_VALUE_MAX > Calib_TempDAMax) && (DAC_VALUE_MAX > Calib_TempDAMin))
+    if((Calib_TempDAMax > Calib_TempDAMin) && (Calib_TempDAMax <= DAC_VALUE_MAX))
     {
         Cur_Param[0] = (uint8_t)(Calib_TempDAMin >> 8);
         Cur_Param[1] = (uint8_t)Calib_TempDAMin;

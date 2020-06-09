@@ -40,7 +40,7 @@ static DMA_HandleTypeDef hdma_usart_tx; ///< 串口发送DMA处理对象
 */
 void BSP_USART_UART_Init(uint32_t baudrate, uint32_t parity)
 {
-    huart.Instance = USER_USART;
+    huart.Instance = USARTx;
     if(parity == UART_PARITY_NONE)
     {
         huart.Init.WordLength = UART_WORDLENGTH_8B;
@@ -87,28 +87,28 @@ void BSP_USART_UART_DeInit(void)
 void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 {
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(uartHandle->Instance==USART1)
-  {
-    __HAL_RCC_USART1_CLK_ENABLE();
-    __HAL_RCC_DMA1_CLK_ENABLE();
-  
-    USER_USART_TX_PIN_CLK_ENABLE();
-    USER_USART_RX_PIN_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    GPIO_InitStruct.Pin = USER_USART_TX_PIN;
+    USARTx_CLK_ENABLE();
+    DMAx_CLK_ENABLE();
+  
+    USARTx_TX_GPIO_CLK_ENABLE();
+    USARTx_RX_GPIO_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = USARTx_TX_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = USER_USART_ALTERNATE;
-    HAL_GPIO_Init(USER_USART_TX_PIN_GPIOX, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = USARTx_TX_AF;
+    HAL_GPIO_Init(USARTx_TX_GPIO_PORT, &GPIO_InitStruct);
       
-    GPIO_InitStruct.Pin = USER_USART_RX_PIN;
-    HAL_GPIO_Init(USER_USART_RX_PIN_GPIOX, &GPIO_InitStruct);
+    GPIO_InitStruct.Pin = USARTx_RX_PIN;
+    GPIO_InitStruct.Alternate = USARTx_RX_AF;
+    HAL_GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
 
     /* USART1 DMA Init */
     /* USART1_RX Init */
-    hdma_usart_rx.Instance = DMA1_Channel3;
+    hdma_usart_rx.Instance = USARTx_RX_DMA_STREAM;
     hdma_usart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_usart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_rx.Init.MemInc = DMA_MINC_ENABLE;
@@ -124,7 +124,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     __HAL_LINKDMA(uartHandle,hdmarx,hdma_usart_rx);
 
     /* USART1_TX Init */
-    hdma_usart_tx.Instance = DMA1_Channel2;
+    hdma_usart_tx.Instance = USARTx_TX_DMA_STREAM;
     hdma_usart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_usart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_tx.Init.MemInc = DMA_MINC_ENABLE;
@@ -140,15 +140,14 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart_tx);
 
     /* USART1 interrupt Init */
-    HAL_NVIC_SetPriority(USER_USART_DMA_CHANNEL_IRQN, 0, 0);
-    HAL_NVIC_EnableIRQ(USER_USART_DMA_CHANNEL_IRQN);
+    HAL_NVIC_SetPriority(USARTx_DMA_TX_RX_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USARTx_DMA_TX_RX_IRQn);
     
-    HAL_NVIC_SetPriority(USER_USART_IRQN, 1, 0);
-    HAL_NVIC_EnableIRQ(USER_USART_IRQN);
+    HAL_NVIC_SetPriority(USARTx_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(USARTx_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
 
   /* USER CODE END USART1_MspInit 1 */
-  }
 }
 
 /**@brief       串口时钟、底层管脚反初始化(由HAL_UART_DeInit回调调用)
@@ -160,23 +159,21 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 {
 
-  if(uartHandle->Instance==USART1)
-  {
-    __HAL_RCC_USART1_CLK_DISABLE();
+    USARTx_CLK_DISABLE();
   
-    HAL_GPIO_DeInit(USER_USART_TX_PIN_GPIOX, USER_USART_TX_PIN);
-    HAL_GPIO_DeInit(USER_USART_RX_PIN_GPIOX, USER_USART_RX_PIN);
+    HAL_GPIO_DeInit(USARTx_TX_GPIO_PORT, USARTx_TX_PIN);
+    HAL_GPIO_DeInit(USARTx_RX_GPIO_PORT, USARTx_RX_PIN);
 
     /* USART1 DMA DeInit */
     HAL_DMA_DeInit(uartHandle->hdmarx);
     HAL_DMA_DeInit(uartHandle->hdmatx);
 
     /* USART1 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(USART1_IRQn);
+    HAL_NVIC_DisableIRQ(USARTx_IRQn);
   /* USER CODE BEGIN USART1_MspDeInit 1 */
 
   /* USER CODE END USART1_MspDeInit 1 */
-  }
+
 } 
 
 /**@brief       串口DMA发送
@@ -277,9 +274,9 @@ __weak void HAL_UART_CMatchCallback(UART_HandleTypeDef *huart)
 /**@brief       串口DMA中断服务函数
 * @return       函数执行结果
 * - None
-* @note         USER_USART_DMA_IRQHANDLER在usart_bsp.h中定义
+* @note         USARTx_DMA_TX_RX_IRQHandler在usart_bsp.h中定义
 */
-void USER_USART_DMA_IRQHANDLER(void)
+void USARTx_DMA_TX_RX_IRQHandler(void)
 {
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
@@ -298,9 +295,9 @@ void USER_USART_DMA_IRQHANDLER(void)
 /**@brief       串口中断服务函数
 * @return       函数执行结果
 * - None
-* @note         USER_USART_IRQHANDLER在usart_bsp.h中定义
+* @note         USARTx_IRQHandler在usart_bsp.h中定义
 */
-void USER_USART_IRQHANDLER(void)
+void USARTx_IRQHandler(void)
 {
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS

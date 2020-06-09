@@ -27,23 +27,36 @@
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
+/* User can use this section to tailor USARTx/UARTx instance used and associated
+   resources */
+/* Definition for USARTx clock resources */
+#define USARTx                           USART1
+#define USARTx_CLK_ENABLE()              __HAL_RCC_USART1_CLK_ENABLE()
+#define DMAx_CLK_ENABLE()                __HAL_RCC_DMA1_CLK_ENABLE()
+#define USARTx_RX_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
+#define USARTx_TX_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
 
-#define USER_USART              USART1
-#define USER_USART_ALTERNATE    GPIO_AF1_USART1
+#define USARTx_CLK_DISABLE()             __HAL_RCC_USART1_CLK_DISABLE()
 
-/* USER CODE BEGIN Private defines */
-#define USER_USART_TX_PIN_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
-#define USER_USART_RX_PIN_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
-#define USER_USART_TX_PIN               GPIO_PIN_9
-#define USER_USART_RX_PIN               GPIO_PIN_10
-#define USER_USART_TX_PIN_GPIOX         GPIOA
-#define USER_USART_RX_PIN_GPIOX         GPIOA
+/* Definition for USARTx Pins */
+#define USARTx_TX_PIN                    GPIO_PIN_9
+#define USARTx_TX_GPIO_PORT              GPIOA
+#define USARTx_TX_AF                     GPIO_AF1_USART1
+#define USARTx_RX_PIN                    GPIO_PIN_10
+#define USARTx_RX_GPIO_PORT              GPIOA
+#define USARTx_RX_AF                     GPIO_AF1_USART1
 
-#define USER_USART_DMA_IRQHANDLER       DMA1_Channel2_3_IRQHandler
-#define USER_USART_IRQHANDLER           USART1_IRQHandler
+/* Definition for USARTx's DMA */
+#define USARTx_TX_DMA_STREAM              DMA1_Channel2
+#define USARTx_RX_DMA_STREAM              DMA1_Channel3
 
-#define USER_USART_IRQN                 USART1_IRQn
-#define USER_USART_DMA_CHANNEL_IRQN     DMA1_Channel2_3_IRQn
+/* Definition for USARTx's NVIC */
+#define USARTx_DMA_TX_RX_IRQn             DMA1_Channel2_3_IRQn
+#define USARTx_DMA_TX_RX_IRQHandler       DMA1_Channel2_3_IRQHandler
+
+/* Definition for USARTx's NVIC */
+#define USARTx_IRQn                      USART1_IRQn
+#define USARTx_IRQHandler                USART1_IRQHandler
 
 
 #ifndef OP_SUCCESS

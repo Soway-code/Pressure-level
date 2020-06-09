@@ -112,7 +112,7 @@ extern const unsigned long REG[];
 
 /** 设定CDC每次测量后的假测量次数，可从0到4选择 */
 #define REG3_CMEAS_FAKE_NONE                0x00        /** 无假测量 */
-#define REG3_CMEAS_FAKE_1_TIMES             (0x01 << 13)/** 1次假测量 */
+#define REG3_CMEAS_FAKE_1_TIME              (0x01 << 13)/** 1次假测量 */
 #define REG3_CMEAS_FAKE_2_TIMES             (0x02 << 13)/** 2次假测量 */
 #define REG3_CMEAS_FAKE_4_TIMES             (0x03 << 13)/** 4次假测量 */
 
@@ -150,7 +150,7 @@ extern const unsigned long REG[];
 #define REG4_TMEAS_STARTPIN_PG2             (0x02 << 2) /** PG2 */
 #define REG4_TMEAS_STARTPIN_PG3             (0x03 << 2) /** PG3 */
 
-/** 选择温度测量的触发源,选项 2 和 3 请不要应用 */
+/** 选择温度测量的触发源 */
 #define REG4_TMEAS_TRIG_SEL_OFF             0x00        /** 关闭 / 操作码触发 */
 #define REG4_TMEAS_TRIG_SEL_CMEAS           0x01        /** CMEAS-触发 (通过 C-测量,推荐) */
 
@@ -224,7 +224,7 @@ xx 当中温度测量是在 CDC-完成之后进行的 */
 #define REG8_DSP_FF_IN_PG3                  (0x08 << 12)/** PG3 */
 
 /** 单片机的,由软件工程师来进行定义 */
-#define REG8_DSP_WATCHDOG_LENGTH_CONFIG     0           /** 定时器时长 */
+#define REG8_DSP_WATCHDOG_LENGTH_CONFIG     0           /** 定时器时长, 范围：0~3 */
 #define REG8_DSP_WATCHDOG_LENGTH            (REG8_DSP_WATCHDOG_LENGTH_CONFIG << 10)
 
 /** 开启在 PG0 和 PG1线上的抗抖动滤波 */
@@ -337,6 +337,41 @@ PG2端口输出 */
 #define PARAM2_SELECT_C5_C4                 0x03        /** C5/C4 */
 #define PARAM2_SELECT_C7_C6                 0x04        /** C7/C6 */
 
+/** pulse0选择PDM/PWM输出的信号源 */
+#define PARAM2_PULSE0_SELECT_C1_C0          PARAM2_SELECT_C1_C0     /** C1/C0 */
+#define PARAM2_PULSE0_SELECT_R0_RREF        PARAM2_SELECT_R0_RREF   /** R0/R参考 */
+#define PARAM2_PULSE0_SELECT_R2_RREF        PARAM2_SELECT_R2_RREF   /** R2/R参考 */
+
+/** pulse0单一模式 */
+#define PARAM2_PULSE0_SELECT_C2_C0          PARAM2_SELECT_C2_C0     /** C2/C0 */
+#define PARAM2_PULSE0_SELECT_C3_C0          PARAM2_SELECT_C3_C0     /** C3/C0 */
+#define PARAM2_PULSE0_SELECT_C4_C0          PARAM2_SELECT_C4_C0     /** C4/C0 */
+#define PARAM2_PULSE0_SELECT_C5_C0          PARAM2_SELECT_C5_C0     /** C5/C0 */
+#define PARAM2_PULSE0_SELECT_C6_C0          PARAM2_SELECT_C6_C0     /** C6/C0 */
+#define PARAM2_PULSE0_SELECT_C7_C0          PARAM2_SELECT_C7_C0     /** C7/C0 */
+
+/** pulse0差分模式 */
+#define PARAM2_PULSE0_SELECT_C3_C2          PARAM2_SELECT_C3_C2     /** C3/C2 */
+#define PARAM2_PULSE0_SELECT_C5_C4          PARAM2_SELECT_C5_C4     /** C5/C4 */
+#define PARAM2_PULSE0_SELECT_C7_C6          PARAM2_SELECT_C7_C6     /** C7/C6 */
+
+/** pulse1选择PDM/PWM输出的信号源 */
+#define PARAM2_PULSE1_SELECT_C1_C0          (PARAM2_SELECT_C1_C0 << 4)  /** C1/C0 */
+#define PARAM2_PULSE1_SELECT_R0_RREF        (PARAM2_SELECT_R0_RREF << 4)/** R0/R参考 */
+#define PARAM2_PULSE1_SELECT_R2_RREF        (PARAM2_SELECT_R2_RREF << 4)/** R2/R参考 */
+
+/** pulse1单一模式 */
+#define PARAM2_PULSE1_SELECT_C2_C0          (PARAM2_SELECT_C2_C0 << 4)  /** C2/C0 */
+#define PARAM2_PULSE1_SELECT_C3_C0          (PARAM2_SELECT_C3_C0 << 4)  /** C3/C0 */
+#define PARAM2_PULSE1_SELECT_C4_C0          (PARAM2_SELECT_C4_C0 << 4)  /** C4/C0 */
+#define PARAM2_PULSE1_SELECT_C5_C0          (PARAM2_SELECT_C5_C0 << 4)  /** C5/C0 */
+#define PARAM2_PULSE1_SELECT_C6_C0          (PARAM2_SELECT_C6_C0 << 4)  /** C6/C0 */
+#define PARAM2_PULSE1_SELECT_C7_C0          (PARAM2_SELECT_C7_C0 << 4)  /** C7/C0 */
+
+/** pulse1差分模式 */
+#define PARAM2_PULSE1_SELECT_C3_C2          (PARAM2_SELECT_C3_C2 << 4)  /** C3/C2 */
+#define PARAM2_PULSE1_SELECT_C5_C4          (PARAM2_SELECT_C5_C4 << 4)  /** C5/C4 */
+#define PARAM2_PULSE1_SELECT_C7_C6          (PARAM2_SELECT_C7_C6 << 4)  /** C7/C6 */
 
 /** Param3，对于脉冲输出0的斜率，有符号固定点数,19位整数和4位小数 */
 #define PARAM3_PULSE0_SLOPE_CONFIG          0           /** -524,288 到 +524,288 以 0.0625为最小单位 */
@@ -366,7 +401,7 @@ PG2端口输出 */
 
 
 /** Param8，用于内部补偿的乘法系数 无符号固定浮点数,3位整数,21位小数 */
-#define PARAM8_GAIN_CORR_CONFIG             0x200000    /** 0 到 7.9999 */
+#define PARAM8_GAIN_CORR_CONFIG             0x200000    /** 可设置范围: 0 到 7.9999 */
 #define PARAM8_GAIN_CORR                    PARAM8_GAIN_CORR_CONFIG
 
 /** REG20，设备开启寄存器 */
@@ -460,10 +495,10 @@ PG2端口输出 */
                                             | REG3_SEQ_TIME | \
                                             /** 设定CDC每次测量的后的假测量次数，可从0到4选择 */ \
                                             /**  REG3_CMEAS_FAKE_NONE        无假测量                \
-                                                REG3_CMEAS_FAKE_1_TIMES     1次假测量               \
+                                                REG3_CMEAS_FAKE_1_TIME      1次假测量               \
                                                 REG3_CMEAS_FAKE_2_TIMES     2次假测量               \
                                                 REG3_CMEAS_FAKE_4_TIMES     4次假测量 */            \
-                                            REG3_CMEAS_FAKE_1_TIMES | \
+                                            REG3_CMEAS_FAKE_1_TIME | \
                                             /** CDC 测量后内部平均的次数。设置为0无效，默认为1 */                                \
                                             /**  REG3_C_AVRG_CONFIG      配置内部平均次数，范围：0~4095                          \
                                                 REG3_C_AVRG             内部平均次数,它的具体值在REG3_C_AVRG_CONFIG中配置  */  \

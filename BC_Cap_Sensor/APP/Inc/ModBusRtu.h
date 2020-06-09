@@ -32,75 +32,71 @@
 
 #define AUTOUPLOAD_CYCLE                1000            ///< 自动上传周期,单位 ms
 
-#define BROADCASTADDR                     0x00                                  ///< 广播地址
+#define BROADCASTADDR                   0x00                                  ///< 广播地址
 
-#define HOLDING_REG_REGION1_BGEIN         0x0030                                ///< 保持寄存器起始地址1
-#define HOLDING_REG_REGION1_END           0x0041                                ///< 保持寄存器结束地址1
+#define HOLDING_REG_REGION1_BGEIN       0x0030                                ///< 保持寄存器起始地址1
+#define HOLDING_REG_REGION1_END         0x0041                                ///< 保持寄存器结束地址1
 
-#define INPUT_REG_REGION1_BEGIN           0x0000                                ///< 输入寄存器起始地址1
-#define INPUT_REG_REGION1_END             0x0006                                ///< 输入寄存器结束地址1
-#define INPUT_REG_REGION2_BEGIN           0x0080                                ///< 输入寄存器起始地址2
-#define INPUT_REG_REGION2_END             0x0080                                ///< 输入寄存器结束地址2
+#define INPUT_REG_REGION1_BEGIN         0x0000                                ///< 输入寄存器起始地址1
+#define INPUT_REG_REGION1_END           0x0006                                ///< 输入寄存器结束地址1
+#define INPUT_REG_REGION2_BEGIN         0x0080                                ///< 输入寄存器起始地址2
+#define INPUT_REG_REGION2_END           0x0080                                ///< 输入寄存器结束地址2
 
-#define SINGLE_COIL_REGION1_BEGIN         0x0050                                ///< 单个线圈寄存器起始地址1
-#define SINGLE_COIL_REGION1_END           0x0053                                ///< 单个线圈寄存器结束地址1
+#define SINGLE_COIL_REGION1_BEGIN       0x0050                                ///< 单个线圈寄存器起始地址1
+#define SINGLE_COIL_REGION1_END         0x0053                                ///< 单个线圈寄存器结束地址1
 
-#define SPECIAL_COIL_REGION1_BEGIN        0x0000                                ///< 特殊寄存器起始地址1
-#define SPECIAL_COIL_REGION1_END          0x0005                                ///< 特殊寄存器结束地址1
+#define SPECIAL_COIL_REGION1_BEGIN      0x0000                                ///< 特殊寄存器起始地址1
+#define SPECIAL_COIL_REGION1_END        0x0005                                ///< 特殊寄存器结束地址1
 
-#define MUL_REG_REGION1_BEGIN             0x0030                                ///< 多个寄存器起始地址1
-#define MUL_REG_REGION1_END               0x0041                                ///< 多个寄存器结束地址1
+#define MUL_REG_REGION1_BEGIN           0x0030                                ///< 多个寄存器起始地址1
+#define MUL_REG_REGION1_END             0x0041                                ///< 多个寄存器结束地址1
 
-#define _25_FNUC_REG_REGION1_BEGIN        0x0000                                ///< 自定义25功能码寄存器起始地址
-#define _25_FNUC_REG_REGION1_END          0x0009                                ///< 自定义25功能码寄存器结束地址
+#define _25_FNUC_REG_REGION1_BEGIN      0x0000                                ///< 自定义25功能码寄存器起始地址
+#define _25_FNUC_REG_REGION1_END        0x0009                                ///< 自定义25功能码寄存器结束地址
 
-#define DEF_MUL_REG_REGION1_BEGIN         0x0080                                ///< 自定义26/27功能码寄存器起始地址1
-#define DEF_MUL_REG_REGION1_END           0x00A2                                ///< 自定义26/27功能码寄存器结束地址1
-//#define DEF_MUL_REG_REGION2_BEGIN         0x0090                                ///< 自定义26/27功能码寄存器起始地址2
-//#define DEF_MUL_REG_REGION2_END           0x0096                                ///< 自定义26/27功能码寄存器结束地址2
-//#define DEF_MUL_REG_REGION3_BEGIN         0x00B0                                ///< 自定义26/27功能码寄存器起始地址3
-//#define DEF_MUL_REG_REGION3_END           0x00C0                                ///< 自定义26/27功能码寄存器结束地址3
+#define DEF_MUL_REG_REGION1_BEGIN       0x0080                                ///< 自定义26/27功能码寄存器起始地址1
+#define DEF_MUL_REG_REGION1_END         0x00A2                                ///< 自定义26/27功能码寄存器结束地址1
 
-#define MUL_VERSION_INF_BEGIN             0x00E0                                ///< 版本信息起始地址
-#define MUL_VERSION_INF_END               0x00E5                                ///< 版本信息结束地址
+#define MUL_VERSION_INF_BEGIN           0x00E0                                ///< 版本信息起始地址
+#define MUL_VERSION_INF_END             0x00E5                                ///< 版本信息结束地址
 
-#define MB_NONE_EXCEPTION                 0x00                                  ///< Modbus无异常
-#define MB_FUNC_EXCEPTION                 0x01                                  ///< Modbus功能码无效
-#define MB_ADDR_EXCEPTION                 0x02                                  ///< Modbus访问地址失败
-#define MB_VALU_EXCEPTION                 0x03                                  ///< Modbus访问数值无效
-#define MB_DEVC_EXCEPTION                 0x04                                  ///< Modbus访问设备失败
-#define MB_ACKN_EXCEPTION                 0x05                                  ///< Modbus访问设备无应答
-#define MB_BUSY_EXCEPTION                 0x06                                  ///< Modbus访问设备忙
-#define MB_PARI_EXCEPTION                 0x08                                  ///< Modbus设备校验错误
-#define MB_REQ_FAILURE                    0x80                                  ///< Modbus请求错误
+#define MB_NONE_EXCEPTION               0x00                                  ///< Modbus无异常
+#define MB_FUNC_EXCEPTION               0x01                                  ///< Modbus功能码无效
+#define MB_ADDR_EXCEPTION               0x02                                  ///< Modbus访问地址失败
+#define MB_VALU_EXCEPTION               0x03                                  ///< Modbus访问数值无效
+#define MB_DEVC_EXCEPTION               0x04                                  ///< Modbus访问设备失败
+#define MB_ACKN_EXCEPTION               0x05                                  ///< Modbus访问设备无应答
+#define MB_BUSY_EXCEPTION               0x06                                  ///< Modbus访问设备忙
+#define MB_PARI_EXCEPTION               0x08                                  ///< Modbus设备校验错误
+#define MB_REQ_FAILURE                  0x80                                  ///< Modbus请求错误
 
-#define CALIB_CAPMIN_FLAG                 0x01                                  ///< 标定电容零点标志
-#define CALIB_CAPMAX_FLAG                 0x10                                  ///< 标定电容满度标志
-#define CALIB_CAPEOC_FLAG                 0x11                                  ///< 标点电容结束标志
+#define CALIB_CAPMIN_FLAG               0x01                                  ///< 标定电容零点标志
+#define CALIB_CAPMAX_FLAG               0x10                                  ///< 标定电容满度标志
+#define CALIB_CAPEOC_FLAG               0x11                                  ///< 标点电容结束标志
 
-#define CALIB_CAPADMIN_FLAG               0x01                                  ///< 标定电容AD零点标志
-#define CALIB_CAPADLOW_FLAG               0x02                                  ///< 标定电容AD下刻度标志
-#define CALIB_CAPADHIH_FLAG               0x10                                  ///< 标定电容AD上刻度标志
-#define CALIB_CAPADMAX_FLAG               0x20                                  ///< 标定电容AD满度标志
-#define CALIB_CAPADEOC_FLAG               0x33                                  ///< 标定电容AD结束标志
+#define CALIB_CAPADMIN_FLAG             0x01                                  ///< 标定电容AD零点标志
+#define CALIB_CAPADLOW_FLAG             0x02                                  ///< 标定电容AD下刻度标志
+#define CALIB_CAPADHIH_FLAG             0x10                                  ///< 标定电容AD上刻度标志
+#define CALIB_CAPADMAX_FLAG             0x20                                  ///< 标定电容AD满度标志
+#define CALIB_CAPADEOC_FLAG             0x33                                  ///< 标定电容AD结束标志
 
-#define CALIB_CAPDAMIN_FLAG               0x01                                  ///< 标定电容DA零点标志
-#define CALIB_CAPDALOW_FLAG               0x02                                  ///< 标定电容DA下刻度标志
-#define CALIB_CAPDAHIH_FLAG               0x10                                  ///< 标定电容DA上刻度标志
-#define CALIB_CAPDAMAX_FLAG               0x20                                  ///< 标定电容DA满度标志
-#define CALIB_CAPDAEOC_FLAG               0x33                                  ///< 标定电容DA结束标志
+#define CALIB_CAPDAMIN_FLAG             0x01                                  ///< 标定电容DA零点标志
+#define CALIB_CAPDALOW_FLAG             0x02                                  ///< 标定电容DA下刻度标志
+#define CALIB_CAPDAHIH_FLAG             0x10                                  ///< 标定电容DA上刻度标志
+#define CALIB_CAPDAMAX_FLAG             0x20                                  ///< 标定电容DA满度标志
+#define CALIB_CAPDAEOC_FLAG             0x33                                  ///< 标定电容DA结束标志
 
-#define CALIB_TEMPDAMIN_FLAG              0x01                                  ///< 标定温度DA零点标志
-#define CALIB_TEMPDAMAX_FLAG              0x10                                  ///< 标定温度DA满度标志
-#define CALIB_TEMPDAEOC_FLAG              0x11   
+#define CALIB_TEMPDAMIN_FLAG            0x01                                  ///< 标定温度DA零点标志
+#define CALIB_TEMPDAMAX_FLAG            0x10                                  ///< 标定温度DA满度标志
+#define CALIB_TEMPDAEOC_FLAG            0x11   
 
 ///< 冻结设备
-#define FREEZE_ENABLE                                0x0F
+#define FREEZE_ENABLE                   0x0F
 ///< 解冻设备
-#define FREEZE_DISABLE                               0x00
+#define FREEZE_DISABLE                  0x00
 
-#define ADCLIB_ENABLE          0x0F
-#define ADCLIB_DISABLE         0x00
+#define ADCLIB_ENABLE                   0x0F
+#define ADCLIB_DISABLE                  0x00
 
 #define NO_CHECK_ADDRESS                0
 #define CHECK_ADDRESS                   1
@@ -108,9 +104,9 @@
     
 /** ModBus发送/接收处理结构体 */
 typedef struct {
-    uint8_t *Send_Buf;          ///< ModBus发送缓存指针
-    uint16_t Send_Len;          ///< ModBus发送缓存长度
-    uint8_t *Receive_Buf;       ///< ModBus接收缓存指针
+    uint8_t *Send_Buf;                  ///< ModBus发送缓存指针
+    uint16_t Send_Len;                  ///< ModBus发送缓存长度
+    uint8_t *Receive_Buf;               ///< ModBus接收缓存指针
 }ModBus_TX_RX_TypeDef;
 
 /** ModBus处理的基本参数结构 */
@@ -127,7 +123,7 @@ typedef struct _ModBusBaseParam_TypeDef {
 #ifdef USING_RT_THREAD_OS
     rt_sem_t TX_Lock;                   ///< 发送锁
 #endif
-    ///< ModBus回调函数
+    /** ModBus回调函数 */
     int     (*ModBus_CallBack) (struct _ModBusBaseParam_TypeDef *arg);
 }ModBusBaseParam_TypeDef;
 
