@@ -29,32 +29,17 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
 typedef  void (*pFunction)(void);
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 static ModBus_Param_TypeDef ModBus_Param_Obj;
 static uint32_t ModBus_RX_Buf[USART_ASCII_MAX_DATALEN / 4];
-/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
@@ -90,83 +75,59 @@ static void JumpToUserApplication(void)
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
     uint8_t Upgrade_Flag;
     uint32_t Old_Tick;
-  /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  /* USER CODE BEGIN 2 */
+    HAL_Init();
+    SystemClock_Config();
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
     ModBus_Param_Init(&ModBus_Param_Obj);
     Sensor_USART_Init(USART_BAUDRATE_9600_CODE, USART_PARITY_NONE_CODE);
     Upgrade_Flag = Read_Memory_1_Byte(ADDR_UPGRADEFLAG);
-  /* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  if(Upgrade_Flag == UPGRADE_FLAG_NONE 
-      || ModBus_Param_Obj.ProgErase == ERASE_FLAG_NONE)
-  {
-      ModBus_Param_Obj.UpgradeWaitTime = -1;
-  }
-  else
-  {
-      ModBus_Param_Obj.UpgradeWaitTime = 2;
-  }
-  Old_Tick = HAL_GetTick();
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    if(ModBus_Param_Obj.UpgradeWaitTime >= 0)
+    if(Upgrade_Flag == UPGRADE_FLAG_NONE 
+        || ModBus_Param_Obj.ProgErase == ERASE_FLAG_NONE)
     {
-        if(HAL_GetTick() > (ModBus_Param_Obj.UpgradeWaitTime * 1000 + Old_Tick))          //等待时间到
+      ModBus_Param_Obj.UpgradeWaitTime = -1;
+    }
+    else
+    {
+        ModBus_Param_Obj.UpgradeWaitTime = 2;
+    }
+    Old_Tick = HAL_GetTick();
+    while (1)
+    {
+        if(ModBus_Param_Obj.UpgradeWaitTime >= 0)
         {
-            break;
+            if(HAL_GetTick() > (ModBus_Param_Obj.UpgradeWaitTime * 1000 + Old_Tick))          //等待时间到
+            {
+                break;
+            }
+        }
+
+        if(Sensor_USART_Get_RX_Updata_Flag())                                               //如果有数据则处理                                                      
+        {
+            Sensor_USART_Clear_RX_Updata_Flag();
+            HandleFrameInformation(&ModBus_Param_Obj);                                        //处理接收的帧数据
         }
     }
-
-    if(Sensor_USART_Get_RX_Updata_Flag())                                               //如果有数据则处理                                                      
+    if (((*(__IO uint32_t*)APPLICATION_ADDRESS) & 0x2FFE0000 ) == 0x20000000)
     {
-      Sensor_USART_Clear_RX_Updata_Flag();
-      HandleFrameInformation(&ModBus_Param_Obj);                                        //处理接收的帧数据
+        if(ModBus_Param_Obj.ProgErase != ERASE_FLAG)
+        {
+            Write_Memory_1_Byte(ADDR_ERASEFLAG, ERASE_FLAG);        //有应用程序则标记擦除标志
+        }
+        Write_Memory_1_Byte(ADDR_UPGRADEFLAG, UPGRADE_FLAG);       //有应用程序则标记升级标志
+        Write_Memory_1_Byte(ADDR_DEVICEADDR, UPGRADED_DEVICEADDR);
+        while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
+        BSP_USART_UART_DeInit();
+        JumpToUserApplication();                        //执行应用程序
     }
-  }
-  if (((*(__IO uint32_t*)APPLICATION_ADDRESS) & 0x2FFE0000 ) == 0x20000000)
-  {
-      if(ModBus_Param_Obj.ProgErase != ERASE_FLAG)
-      {
-        Write_Memory_1_Byte(ADDR_ERASEFLAG, ERASE_FLAG);        //有应用程序则标记擦除标志
-      }
-      Write_Memory_1_Byte(ADDR_UPGRADEFLAG, UPGRADE_FLAG);       //有应用程序则标记升级标志
-      Write_Memory_1_Byte(ADDR_DEVICEADDR, UPGRADED_DEVICEADDR);
-      while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
-      BSP_USART_UART_DeInit();
-    JumpToUserApplication();                        //执行应用程序
-  }
-  
-  while(1)
-  { 
-  }
-  /* USER CODE END 3 */
+
+    while(1)
+    { 
+    }
 }
 
 /**
