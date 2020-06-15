@@ -134,7 +134,10 @@ uint8_t InFlash_Write_MultiBytes(uint16_t RWAddr, uint8_t const *pWrbuf, uint16_
             Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, 
                                         (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint32_t)Flash_Buf[i / 4]);
             if(HAL_OK != Halstatus)
-                break;
+            {
+                HAL_FLASH_Lock();
+                goto __exit;
+            }
         }
         HAL_FLASH_Lock();
         //__enable_irq();
@@ -147,6 +150,7 @@ uint8_t InFlash_Write_MultiBytes(uint16_t RWAddr, uint8_t const *pWrbuf, uint16_
         else
             remain = Wrlen;
     }
+__exit:
     if(HAL_OK != Halstatus)
     {
         return OP_FAILED;
