@@ -20,6 +20,7 @@
 #include "TypeConvert.h"
 
 
+
 /**@brief       切换滤波水平函数
 * @param[in]    FiltFactor : 滤波系数;
 * @param[in]    FilterParam : 指定滤波参数结构体;
@@ -90,7 +91,7 @@ void SwitchCurFilter(uint8_t FiltFactor, DataFilterParam *FilterParam)
     FilterParam->FilterStart = 0;
 }
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化数据滤波需要的参数结构
 * @param[in]    Filterfactor_CountMax : 滤波系数和累计输入的最大值,滤波系数在高8位,
@@ -98,20 +99,20 @@ void SwitchCurFilter(uint8_t FiltFactor, DataFilterParam *FilterParam)
 * @param[out]   FilterParam : 数据滤波需要的参数结构指针;
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_CountMax)
 {
     uint8_t Read_Data[4];
     
-    InFlash_Read_MultiBytes(FILTER, Read_Data, 1);      //滤波系数
+    InMemory_Read_MultiBytes(FILTER, Read_Data, 1);      //滤波系数
     FilterParam->FilterFactor   = Read_Data[0];
     SwitchCurFilter(Read_Data[0], FilterParam);         //切换滤波水平
     FilterParam->InputCountMax = Filterfactor_CountMax; 
-    InFlash_Read_MultiBytes(CAPMAX, Read_Data, 4);      //电容满点值
+    InMemory_Read_MultiBytes(CAPMAX, Read_Data, 4);      //电容满点值
     FilterParam->InputRangeMax = HexToUlong(Read_Data);
-    InFlash_Read_MultiBytes(CAPMIN, Read_Data, 4);      //电容零点值
+    InMemory_Read_MultiBytes(CAPMIN, Read_Data, 4);      //电容零点值
     FilterParam->InputRangeMin = HexToUlong(Read_Data);
 }
 #else
@@ -136,65 +137,65 @@ void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_Co
 }
 #endif
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化数据转换需要的参数结构
 * @param[out]   DataConvert_Param : 数据转换需要的参数结构指针;
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param)
 {
     uint8_t Read_Data[4];
     
-    InFlash_Read_MultiBytes(COMPENSATE, Read_Data, 1);      //补偿使能标志
+    InMemory_Read_MultiBytes(COMPENSATE, Read_Data, 1);      //补偿使能标志
     DataConvert_Param->CompenEn = Read_Data[0];
     
-    InFlash_Read_MultiBytes(HEIGHTRANGE, Read_Data, 2);     //液面高度范围
+    InMemory_Read_MultiBytes(HEIGHTRANGE, Read_Data, 2);     //液面高度范围
     DataConvert_Param->HeightRange = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPMIN, Read_Data, 4);          //电容零点值
+    InMemory_Read_MultiBytes(CAPMIN, Read_Data, 4);          //电容零点值
     DataConvert_Param->CapMin = HexToUlong(Read_Data);
     
-    InFlash_Read_MultiBytes(CAPMAX, Read_Data, 4);          //电容满点值
+    InMemory_Read_MultiBytes(CAPMAX, Read_Data, 4);          //电容满点值
     DataConvert_Param->CapMax = HexToUlong(Read_Data);
     
-    InFlash_Read_MultiBytes(CAPMINBAK, Read_Data, 4);       //电容零点备份值
+    InMemory_Read_MultiBytes(CAPMINBAK, Read_Data, 4);       //电容零点备份值
     DataConvert_Param->CapMinBak = HexToUlong(Read_Data);
     
-    InFlash_Read_MultiBytes(CAPMAXBAK, Read_Data, 4);       //电容满点备份值
+    InMemory_Read_MultiBytes(CAPMAXBAK, Read_Data, 4);       //电容满点备份值
     DataConvert_Param->CapMaxBak = HexToUlong(Read_Data);
     
-    InFlash_Read_MultiBytes(CAPADMIN, Read_Data, 2);        //电容AD零点值
+    InMemory_Read_MultiBytes(CAPADMIN, Read_Data, 2);        //电容AD零点值
     DataConvert_Param->CapADMin = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPADLOW, Read_Data, 2);        //电容AD下刻度值
+    InMemory_Read_MultiBytes(CAPADLOW, Read_Data, 2);        //电容AD下刻度值
     DataConvert_Param->CapADLow = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPADHIGH, Read_Data, 2);       //电容AD上刻度值
+    InMemory_Read_MultiBytes(CAPADHIGH, Read_Data, 2);       //电容AD上刻度值
     DataConvert_Param->CapADHigh = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPADMAX, Read_Data, 2);        //电容AD满点值
+    InMemory_Read_MultiBytes(CAPADMAX, Read_Data, 2);        //电容AD满点值
     DataConvert_Param->CapADMax = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPDAMIN, Read_Data, 2);        //电容DA零点值
+    InMemory_Read_MultiBytes(CAPDAMIN, Read_Data, 2);        //电容DA零点值
     DataConvert_Param->CapDAMin = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPDALOW, Read_Data, 2);        //电容DA下刻度值
+    InMemory_Read_MultiBytes(CAPDALOW, Read_Data, 2);        //电容DA下刻度值
     DataConvert_Param->CapDALow = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPDAHIGH, Read_Data, 2);       //电容DA上刻度值
+    InMemory_Read_MultiBytes(CAPDAHIGH, Read_Data, 2);       //电容DA上刻度值
     DataConvert_Param->CapDAHigh = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CAPDAMAX, Read_Data, 2);        //电容DA满点值
+    InMemory_Read_MultiBytes(CAPDAMAX, Read_Data, 2);        //电容DA满点值
     DataConvert_Param->CapDAMax = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(CORRECT_K, Read_Data, 2);       //电容修正系数K
+    InMemory_Read_MultiBytes(CORRECT_K, Read_Data, 2);       //电容修正系数K
     DataConvert_Param->Correct_K = (float)((Read_Data[0] << 8) | Read_Data[1]) / 100.0;
     
-    InFlash_Read_MultiBytes(CORRECT_B, Read_Data, 2);       //电容修正系数B
+    InMemory_Read_MultiBytes(CORRECT_B, Read_Data, 2);       //电容修正系数B
     DataConvert_Param->Correct_B = (float)((Read_Data[0] << 8) | Read_Data[1]) - 100.0;
     
     DataConvert_Param->CapDA_ClibEn = DAOUTCLIB_DISABLE;    //电容DA标定失能
@@ -264,20 +265,25 @@ uint8_t DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param, uint8_t
 /**@brief       获取PCap原始采集值
 * @param[in]    reg_addr : 结果寄存器的地址;
 * @param[out]   PCap_Result : 保存PCap的输出结果;
+* @param[in]    Read_Cnt : 读取的电容个数;
 * @return       函数执行结果
 * - OP_SUCCESS(操作成功)
 * - OP_FAILED(操作失败)
 */
-uint8_t Sensor_PCap_GetResult(uint8_t reg_addr, uint32_t *PCap_Result)
+uint8_t Sensor_PCap_GetResult(uint8_t reg_addr, uint32_t *PCap_Result, uint8_t Read_Cnt)
 {
     uint32_t PCap_Status;
     uint8_t Result = OP_FAILED;    
+    uint8_t i;
     
     //读取PCap状态
     PCap_Status = PCap_Res_Sta();
     if(PCap_Status & PCAP_RUNBIT)
     {
-        *PCap_Result = PCap_Res_Data(reg_addr);
+        for(i = 0; i < Read_Cnt; i++)
+        {
+            PCap_Result[i] = PCap_Res_Data(reg_addr + i);           
+        }
         Result = OP_SUCCESS;
     }
     PCap_Measure();
@@ -575,26 +581,11 @@ static rt_err_t  pcap_close(rt_device_t dev)
 */
 static rt_size_t pcap_read(rt_device_t dev, rt_off_t pos, void *buffer, rt_size_t size)
 {
-    uint8_t i;
-    uint32_t *read_buf;
-    
-    read_buf = (uint32_t *)buffer;
-    for(i = pos; i < (size + pos); i++)
+    if(Sensor_PCap_GetResult(pos, buffer, size) != OP_SUCCESS)
     {
-        if(i < RESULT_STATUS_ADDR
-            || i == RESULT_REG10_ADDR || i == RESULT_REG11_ADDR)
-        {
-            if(Sensor_PCap_GetResult(i, read_buf) != OP_SUCCESS)
-            {
-                return 0;
-            }
-        }
-        else if(i > RESULT_REG11_ADDR)
-        {
-            return i - pos;
-        }
-        read_buf += 4;
-    }
+        return 0;
+    }    
+    
     return size;
 }
 

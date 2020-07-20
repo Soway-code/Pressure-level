@@ -22,11 +22,18 @@
 
 
 #include "adc_bsp.h"
-#include "In_Flash_app.h"
+#include "In_Memory_app.h"
 #include "VariaType.h"
 
-#define VREF30ADDR          ((uint32_t) 0x1FFFF7B8)             ///< 30摄氏度ADC参考值地址
-#define VREF110ADDR         ((uint32_t) 0x1FFFF7C2)             ///< 110摄氏度ADC参考值地址
+#if defined(STM32F0)
+#define VREF30ADDR          ((uint16_t*) ((uint32_t) 0x1FFFF7B8))   ///< 30摄氏度ADC参考值地址
+#define VREF110ADDR         ((uint16_t*) ((uint32_t) 0x1FFFF7C2))   ///< 110摄氏度ADC参考值地址
+#elif defined(STM32L0)
+#define VREF30ADDR          ((uint16_t*) ((uint32_t) 0x1FF8007A))   ///< 130摄氏度ADC参考值地址
+#define VREF130ADDR         ((uint16_t*) ((uint32_t) 0x1FF8007E))   ///< 130摄氏度ADC参考值地址
+#define VDD_CALIB           ((uint16_t) (300))
+#define VDD_APPLI           ((uint16_t) (330))
+#endif
 
 #define AD_GROUP_MAX        10                                  ///< 每个通道采集数量，用户可以自定义
 #define AD_CHANNEL_MAX      AD_CHANNEL_TOTAL                    ///< 使能ADC通道数，用户可以自定义
@@ -65,14 +72,14 @@ struct rt_adc_device_obj {
 };
 #endif
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化温度转换需要的参数结构
 * @param[out]   ADC_TemperParam : 温度转换需要的参数结构指针; 
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void Sensor_ADC_TemperParam_Init(ADC_TemperParam_TypeDef *ADC_TemperParam);
 #else

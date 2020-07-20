@@ -3,8 +3,8 @@
 #include "adc_app.h"
 #include "dac_bsp.h"
 #include "iwdg_bsp.h"
-#include "ModBusRtu.h"
-#include "In_Flash_app.h"
+#include "ModBus.h"
+#include "In_Memory_app.h"
 
 #define APPLICATION_ADDRESS     (uint32_t)0x08003000
 
@@ -75,7 +75,8 @@ int main(void)
         {
             //读取PCap数据并判断返回状态,成功状态则进行滤波和数据转换
             if(Sensor_PCap_GetResult(RESULT_REG1_ADDR, 
-                                    &ModBus_Device.PCap_DataConvert_Out->PCap_ResultValue) == OP_SUCCESS)
+                                    &ModBus_Device.PCap_DataConvert_Out->PCap_ResultValue, 
+                                    1) == OP_SUCCESS)
             {
                 //数据滤波并判断是否成功
                 if(Sensor_DataFilter(&FilterParam, 

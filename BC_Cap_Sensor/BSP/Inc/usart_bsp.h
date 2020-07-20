@@ -23,6 +23,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "VariaType.h"
+#if defined(STM32F0)
+#include "stm32f0xx_ll_usart.h"
+#elif defined(STM32L0)
+#include "stm32l0xx_ll_usart.h"
+#endif
 
 /* USER CODE BEGIN Includes */
 
@@ -41,14 +46,27 @@
 /* Definition for USARTx Pins */
 #define USARTx_TX_PIN                    GPIO_PIN_9
 #define USARTx_TX_GPIO_PORT              GPIOA
+#if defined(STM32F0)
 #define USARTx_TX_AF                     GPIO_AF1_USART1
+#elif defined(STM32L0)
+#define USARTx_TX_AF                     GPIO_AF4_USART1
+#endif
 #define USARTx_RX_PIN                    GPIO_PIN_10
 #define USARTx_RX_GPIO_PORT              GPIOA
+#if defined(STM32F0)
 #define USARTx_RX_AF                     GPIO_AF1_USART1
+#elif defined(STM32L0)
+#define USARTx_RX_AF                     GPIO_AF4_USART1
+#endif
 
 /* Definition for USARTx's DMA */
 #define USARTx_TX_DMA_STREAM              DMA1_Channel2
 #define USARTx_RX_DMA_STREAM              DMA1_Channel3
+
+#if defined(STM32L0)
+#define USARTx_TX_DMA_REQUEST           DMA_REQUEST_3
+#define USARTx_RX_DMA_REQUEST           DMA_REQUEST_3
+#endif
 
 /* Definition for USARTx's NVIC */
 #define USARTx_DMA_TX_RX_IRQn             DMA1_Channel2_3_IRQn

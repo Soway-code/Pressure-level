@@ -76,10 +76,14 @@ typedef enum {
 /* Definition for ADCx's DMA */
 #define ADCx_DMA_STREAM                 DMA1_Channel1
 
-#define ADCx_DMA_TX_RX_IRQHandler       DMA1_Channel1_IRQHandler    ///< ADC DMA中断服务函数
+#if defined(STM32L0)
+#define ADCx_DMA_REQUEST                DMA_REQUEST_0
+#endif
+
+#define ADCx_DMA_IRQHandler             DMA1_Channel1_IRQHandler    ///< ADC DMA中断服务函数
 #define ADCx_IRQHandler                 ADC1_COMP_IRQHandler        ///< ADC中断服务函数
 
-#define ADCx_DMA_TX_RX_IRQn             DMA1_Channel1_IRQn
+#define ADCx_DMA_IRQn                   DMA1_Channel1_IRQn
 #define ADCx_IRQn                       ADC1_COMP_IRQn
 
 
@@ -101,17 +105,8 @@ void BSP_ADC_Init(void);
 */
 uint8_t BSP_ADC_Start_DMA(uint32_t *pData, uint32_t Length);
 
-/**@brief       ADC转换开始
-* @return       函数执行结果
-* - None
-*/
-void BSP_ADC_Conver_Start(void);
-
-/**@brief       ADC转换停止
-* @return       函数执行结果
-* - None
-*/
-void BSP_ADC_Conver_Stop(void);
+void BSP_ADC_DMA_Enable_IT(void);
+void BSP_ADC_DMA_Disable_IT(void);
 
 
 #ifdef __cplusplus

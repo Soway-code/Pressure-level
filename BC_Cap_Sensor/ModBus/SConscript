@@ -1,0 +1,29 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+from building import *
+
+cwd = GetCurrentDir()
+src = []
+
+if GetDepend(['APP_USING_MODBUS']):
+	src += Split('''
+				Src/ModBus.c
+				Src/ModBus_Conf.c
+				''')
+                
+if GetDepend(['APP_USING_MODBUS_RTU']):
+	src += Split('''
+				Src/ModBus_RTU.c
+				''')
+                
+if GetDepend(['APP_USING_MODBUS_ASCII']):
+	src += Split('''
+				Src/ModBus_ASCII.c
+				''')
+
+path =  [cwd]
+path += [cwd + '/Inc']
+
+group = DefineGroup('ModBus', src, depend = [''], CPPPATH = path)
+
+Return('group')

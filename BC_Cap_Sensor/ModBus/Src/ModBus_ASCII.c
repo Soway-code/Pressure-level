@@ -1,25 +1,24 @@
 /**@file        modbus_ascii.c
 * @brief        ModBus ASCII数据处理
 * @details      ModBus ASCII数据与ModBus RTU数据互转
-* @author       杨春林
-* @date         2020-06-05
-* @version      V1.0.1
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/06/05  <td>1.0.1    <td>杨春林    <td>对MODBUS_ASCII_SendData函数添加了等待串口DMA\n
-* 发送完毕的程序, 确保上一次数据发送完毕再发送本次的数据
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>新添加的程序代码(ASCII协议部分)
 * </table>
 *
 **********************************************************************************
 */
 
-#include "modbus_ascii.h"
-#include "usart_app.h"
+#include "ModBus_ASCII.h"
 
 
+#if defined(USING_MODBUS_ASCII)
 static uint8_t Send_Buf[USART_ASCII_MIN_DATALEN];   ///< 串口发送数据缓存
 
 
@@ -208,7 +207,7 @@ uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen)
 	return ERR_ASCII;
 }
 
-/**@brief       获取一包数据
+/**@brief       获取一包 ModBus ASCII 数据
 * @param[in]    cyRecvBuff : 接收缓存指针
 * @param[in]    cyLen : 接收的数据长度
 * @return       函数执行结果
@@ -253,27 +252,32 @@ uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
     return ERR_NONE;
 }
 
-/**@brief       发送一包数据
+/**@brief       发送一包 ModBus ASCII 数据
 * @param[in]    cySendBuff : 发送缓存指针
 * @param[in]    cyLen : 发送的数据长度
 * @return       函数执行结果
 * - OP_SUCCESS(成功)
 * - OP_FAILED(失败)
 */
-uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
+uint8_t MODBUS_ASCII_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *cySendBuff, uint16_t cyLen, uint8_t Check_Addr)
 {
-    uint8_t result;
     uint8_t cyLrc;
     uint16_t cyAsciiLen;
 	
     if ( (0 == cyLen) || ( ((uint8_t*)0) == cySendBuff) )
     {
-        return 0;
+        return OP_FAILED;
+    }
+    
+        //广播地址
+    if((BROADCASTADDR == cySendBuff[0]) && Check_Addr)
+    {
+        return OP_FAILED;
     }
     
     if ( (cyLen * 2 + 5) > USART_ASCII_MAX_DATALEN)
     {
-    	return 0;
+    	return OP_FAILED;
     }
     
     Send_Buf[0] = ASCII_HEAD_DATA;
@@ -283,18 +287,11 @@ uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen)
     cyAsciiLen += MODBUS_ASCII_RtuPacketToAsciiPacket(cySendBuff, cyLen, &Send_Buf[1]);    
     MODBUS_ASCII_HexToAscii(cyLrc, &Send_Buf[cyAsciiLen]);
     cyAsciiLen += 2;
-    Send_Buf[cyAsciiLen] = 0x0D;
+    Send_Buf[cyAsciiLen] = ASCII_TAIL_FIRST_DATA;
     cyAsciiLen++;
-    Send_Buf[cyAsciiLen] = 0x0A;
-    cyAsciiLen++;
+    Send_Buf[cyAsciiLen] = ASCII_TAIL_SECOND_DATA;
+    cyAsciiLen++;    
     
-    while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
-    Sensor_USART_Clear_TX_Cplt_Flag();
-#ifdef  USART_USING_485
-    TX_ON;
-#endif
-    result = BSP_UART_Transmit_DMA(Send_Buf, cyAsciiLen);
-    
-    return result;
+    return Send_Data(ModBusBaseParam, Send_Buf, cyAsciiLen);
 }
-
+#endif

@@ -38,14 +38,28 @@
 #define DEFAULT_UART_BAUD               9600    
 
 /** 接收缓存的大小 */
-#define RECEIVE_SIZE                    600
+#define RECEIVE_SIZE                    128
 
-#define USING_UART_TIMEOUT
-//#define USING_CHARMATCH
+/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
+#ifdef USING_RT_THREAD_OS
+#include "rtconfig.h"
+
+#if defined(APP_USING_MODBUS_RTU)
+#define USING_UART_TIMEOUT              ///< 使用接收超时
+#elif defined(APP_USING_MODBUS_ASCII)
+#define USING_CHARMATCH                 ///< 使用字符匹配
+#endif
+
+#else
+
+#define USING_UART_TIMEOUT              ///< 使用接收超时
+//#define USING_CHARMATCH                 ///< 使用字符匹配
+
+#endif
 
 #ifdef  USING_UART_TIMEOUT
 /** 默认超时时间，10表示1个字节时间 */
-#define DEFAULT_UART_TIMEOUT            10
+#define DEFAULT_UART_TIMEOUT            35
 #endif
 
 #ifdef  USING_CHARMATCH

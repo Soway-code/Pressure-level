@@ -27,8 +27,13 @@
 #define DACx                            DAC
 #define DACx_CHANNEL_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
 
+#if defined(STM32F0)
 #define DACx_CLK_ENABLE()               __HAL_RCC_DAC1_CLK_ENABLE()
 #define DACx_CLK_DISABLE()              __HAL_RCC_DAC1_CLK_DISABLE()
+#elif defined(STM32L0)
+#define DACx_CLK_ENABLE()               __HAL_RCC_DAC_CLK_ENABLE()
+#define DACx_CLK_DISABLE()              __HAL_RCC_DAC_CLK_DISABLE()
+#endif
 
 /* Definition for DACx Channel Pin */
 #define DACx_CHANNEL1_PIN               GPIO_PIN_4

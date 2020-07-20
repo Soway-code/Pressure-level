@@ -1,21 +1,21 @@
-/**@file        ModbusRtu.h
-* @details      ModbusRtu.c的头文件,声明了Modbus RTU 通信的API函数
-* @author       杨春林
-* @date         2020-04-29
-* @version      V1.0.0
+/**@file        Modbus.h
+* @details      Modbus.c的头文件,声明了Modbus RTU 通信的API函数
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/04/29  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>维护并更新的版本
 * </table>
 *
 **********************************************************************************
 */
 
-#ifndef __MODBUSRTU_H
-#define __MODBUSRTU_H
+#ifndef __MODBUS_H
+#define __MODBUS_H
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -23,8 +23,6 @@
 #include "usart_app.h"
 #include "ModBus_Conf.h"
 
-
-#define SEND_SIZE                       32              ///< 发送缓存大小
 
 #ifndef RECEIVE_SIZE
 #define RECEIVE_SIZE                    32              ///< 接收缓存的大小
@@ -100,6 +98,13 @@
 
 #define NO_CHECK_ADDRESS                0
 #define CHECK_ADDRESS                   1
+
+/***************************** 错误代码 *****************************/
+#define ERR_NONE            0               //无错误
+#define ERR_ASCII           1               //不全是ASCII码
+#define ERR_LRC             2               //LRC校验错误
+#define ERR_CRC             3               //CRC校验错误
+#define ERR_INVALID_DATA    4               //接收缓存数据无效
     
     
 /** ModBus发送/接收处理结构体 */
@@ -128,7 +133,7 @@ typedef struct _ModBusBaseParam_TypeDef {
 }ModBusBaseParam_TypeDef;
 
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       ModBus初始化
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体
@@ -153,34 +158,17 @@ uint8_t ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam,
                 uint8_t *Param, uint16_t Param_Size);
 #endif
 
-/**@brief       对输入的消息帧进行CRC16校验
-* @param[in]    Msg : 消息首地址;
-* @param[in]    MsgLen : 消息帧长度;
-* @return       函数执行结果
-* - CRC16校验码
-* @note         消息长度不能为0
-*/
-uint16_t MDB_Get_CRC16(uint8_t *Msg, uint16_t MsgLen);
 
-/**@brief       发送 Modbus RTU消息帧
-* @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
-* @param[in]    Msg : 消息首地址; 
-* @param[in]    MsgLen : 消息帧长度;
-* @param[in]    Check_Addr : 是否检查设备地址有效
-* @return       函数执行结果
-* - None
-* @note         消息长度不能为0，发送时先解冻设备
-*/
-void MDB_Snd_Msg_RTU(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg, uint16_t len, uint8_t Check_Addr);
 
 /**@brief       发送数据
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
 * @param[in]    Msg : 消息首地址;
 * @param[in]    MsgLen : 消息帧长度;
 * @return       函数执行结果
-* - None
+* - OP_SUCCESS(成功)
+* - OP_FAILED(失败)
 */
-void Send_Data(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg, uint16_t len);
+uint8_t Send_Data(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg, uint16_t len);
 
 /**@brief       Modbus RTU消息帧处理函数
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;

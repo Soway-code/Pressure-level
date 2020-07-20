@@ -3,13 +3,13 @@
 * @details      ADC DMA 功能配置 ADC温度数据获取与处理
 * @author       杨春林
 * @date         2020-05-06
-* @version      V1.0.0
+* @version      V1.0.1
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
 * <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/05/06  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><td>2020/07/06  <td>1.0.1    <td>杨春林    <td>添加L0系列支持程序
 * </table>
 *
 **********************************************************************************
@@ -19,44 +19,45 @@
 #include "string.h"
 
 
-static uint16_t Temp30_Vref_Adc;                                ///< 30摄氏度ADC基准值
-static uint16_t Temp110_Vref_Adc;                               ///< 110摄氏度ADC基准值
-static float TempVarySlope;                                     ///< 温度变化斜率
 static uint16_t gADC_GetData[AD_GROUP_MAX][AD_CHANNEL_MAX];     ///< ADC的DMA数据缓存区
 static uint16_t uADC_GetResult[AD_GROUP_MAX][AD_CHANNEL_MAX];   ///< ADC结果缓存,用于数据处理
 
 static uint8_t ADC_Updata_Flag = 0;                             ///< ADC数据更新标志
 
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化温度转换需要的参数结构
 * @param[out]   ADC_TemperParam : 温度转换需要的参数结构指针; 
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void Sensor_ADC_TemperParam_Init(ADC_TemperParam_TypeDef *ADC_TemperParam)
 {
     uint8_t Read_Data[4];
     
-    InFlash_Read_MultiBytes(TEMPER_K1, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPER_K1, Read_Data, 2);
     ADC_TemperParam->Temper_K1 = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
+    ADC_TemperParam->Temper_K1 /= 100;
     
-    InFlash_Read_MultiBytes(TEMPER_B1, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPER_B1, Read_Data, 2);
     ADC_TemperParam->Temper_B1 = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
+    ADC_TemperParam->Temper_B1 -= 100;
     
-    InFlash_Read_MultiBytes(TEMPER_K2, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPER_K2, Read_Data, 2);
     ADC_TemperParam->Temper_K2 = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
+    ADC_TemperParam->Temper_K2 /= 100;
     
-    InFlash_Read_MultiBytes(TEMPER_B2, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPER_B2, Read_Data, 2);
     ADC_TemperParam->Temper_B2 = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
+    ADC_TemperParam->Temper_B2 -= 100;
     
-    InFlash_Read_MultiBytes(TEMPDAMIN, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPDAMIN, Read_Data, 2);
     ADC_TemperParam->TempDAMin = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];
     
-    InFlash_Read_MultiBytes(TEMPDAMAX, Read_Data, 2);
+    InMemory_Read_MultiBytes(TEMPDAMAX, Read_Data, 2);
     ADC_TemperParam->TempDAMax = (uint16_t)(Read_Data[0] << 8) | Read_Data[1];   
     
     ADC_TemperParam->TempDARange = ADC_TemperParam->TempDAMax
@@ -112,14 +113,8 @@ void Sensor_ADC_Init(void)
 {    
     //ADC驱动初始化
     BSP_ADC_Init();
-    //读取30摄氏度ADC基准值
-    Temp30_Vref_Adc = *(__IO uint16_t *)VREF30ADDR;
-    //读取110摄氏度ADC基准值
-    Temp110_Vref_Adc = *(__IO uint16_t *)VREF110ADDR;
-    //温度变化斜率计算
-    TempVarySlope = 80.0 / (float)(Temp110_Vref_Adc - Temp30_Vref_Adc);
     //开始ADC DMA传输
-    BSP_ADC_Start_DMA((uint32_t *)&gADC_GetData[0][0],  AD_SEQBUFF_MAX);
+    BSP_ADC_Start_DMA((uint32_t *)gADC_GetData,  AD_SEQBUFF_MAX);
 }
 
 /**@brief       用户获取ADC通道上平均滤波后的数据
@@ -163,8 +158,20 @@ float Sensor_ADC_Get_TemperData(void)
     }
     //计算平均值
     AD_Average = AD_Sum / AD_GROUP_MAX;
-    //根据温度变化斜率得到实际温度
-    Result = TempVarySlope * (AD_Average - Temp30_Vref_Adc) + 30;
+    
+#if defined(STM32F0)
+    /* 将获得的温度ADC值转换成实际温度 */
+    Result = (AD_Average - (int32_t) *VREF30ADDR );
+    Result = Result * (int32_t)(110 - 30);
+    Result = Result / (int32_t)(*VREF110ADDR - *VREF30ADDR);
+    Result = Result + 30;
+#elif defined(STM32L0)
+    /* 将获得的温度ADC值转换成实际温度, 这里参考了芯片参考手册的代码示例编写的 */
+    Result = ((AD_Average * VDD_APPLI / VDD_CALIB) - (int32_t) *VREF30ADDR );
+    Result = Result * (int32_t)(130 - 30);
+    Result = Result / (int32_t)(*VREF130ADDR - *VREF30ADDR);
+    Result = Result + 30;
+#endif
     
     return Result;
 }
@@ -183,9 +190,9 @@ uint8_t Sensor_ADC_Get_Updata_Flag(void)
 * - None
 */
 void Sensor_ADC_Clean_Updata_Flag(void)
-{
-    BSP_ADC_Conver_Start();
+{    
     ADC_Updata_Flag = UPDATA_NONE;
+    BSP_ADC_DMA_Enable_IT();
 }
 
 /**@brief       ADC转换完成回调,在这里停止ADC转换,拷贝DMA数据到
@@ -196,7 +203,7 @@ void Sensor_ADC_Clean_Updata_Flag(void)
 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {    
-    BSP_ADC_Conver_Stop();
+    BSP_ADC_DMA_Disable_IT();
     memcpy(uADC_GetResult, gADC_GetData, sizeof(uADC_GetResult));
     
     ADC_Updata_Flag = UPDATA_OK;
@@ -325,7 +332,7 @@ void adc_thread_entry(void *parameter)
     while(1)
     {
         //判断ADC是否被更新
-        if(Sensor_ADC_Get_Updata_Flag() == UPDATA_OK)
+        if(Sensor_ADC_Get_Updata_Flag() == UPDATA_OK && adc_device != RT_NULL)
         {
             //获取AD转换出的温度值
             rt_device_read(adc_device, AD_CHANNEL_TEMPSENSOR, 

@@ -1,15 +1,15 @@
 /**@file        Modbus_Conf.h
 * @details      Modbus_Conf.c的头文件,声明了电容传感器标定的API函数,定义了
 * 设备参数结构体
-* @author       杨春林
-* @date         2020-04-29
-* @version      V1.0.0
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/04/29  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>新添加的程序代码(指令执行部分)
 * </table>
 *
 **********************************************************************************
@@ -25,6 +25,26 @@
 #include "Picocap_app.h"
 #include "adc_app.h"
 
+
+/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
+#ifdef USING_RT_THREAD_OS
+#include "rtconfig.h"
+
+#if defined(APP_USING_MODBUS_RTU)
+#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议
+#elif defined(APP_USING_MODBUS_ASCII)
+#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议
+#endif
+
+#else
+
+#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议, 还需要在 usart_app.h 里定义USING_UART_TIMEOUT
+//#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议, 还需要在 usart_app.h 里定义USING_CHARMATCH
+//#define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0
+
+#endif
+
+#define SEND_SIZE                       128              ///< 发送缓存大小
 
 #define DAC_VALUE_MAX   4095        ///< DAC最大值
 
