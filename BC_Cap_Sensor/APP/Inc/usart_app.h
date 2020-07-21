@@ -37,8 +37,14 @@
 /** 默认波特率 9600 bit/s */
 #define DEFAULT_UART_BAUD               9600    
 
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+/** 接收缓存的大小, Boot程序固定使用 600 字节长度 */
+#define RECEIVE_SIZE                    600
+#else
 /** 接收缓存的大小 */
 #define RECEIVE_SIZE                    128
+#endif
 
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
@@ -50,10 +56,18 @@
 #define USING_CHARMATCH                 ///< 使用字符匹配
 #endif
 
+#if defined(APP_USING_USART_485)
+/** 串口485收发控制管脚使能 */
+#define USART_USING_485
+#endif
+
 #else
 
-#define USING_UART_TIMEOUT              ///< 使用接收超时
-//#define USING_CHARMATCH                 ///< 使用字符匹配
+//#define USING_UART_TIMEOUT              ///< 使用接收超时
+#define USING_CHARMATCH                 ///< 使用字符匹配
+
+/** 串口485收发控制管脚使能 */
+#define USART_USING_485
 
 #endif
 
@@ -63,12 +77,11 @@
 #endif
 
 #ifdef  USING_CHARMATCH
-/** 默认超时时间，10表示1个字节时间 */
+/** 默认匹配的字符 */
 #define DEFAULT_UART_MATCHCHAR          0x0A
 #endif
 
-/** 串口485收发控制管脚使能 */
-#define USART_USING_485
+
 
 #ifdef  USART_USING_485
 #define _485_RE_DE_PIN_CLK_ENABLE()     __HAL_RCC_GPIOA_CLK_ENABLE()

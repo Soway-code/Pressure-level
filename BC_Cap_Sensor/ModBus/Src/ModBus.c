@@ -143,14 +143,15 @@ uint8_t Send_Data(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg, uint1
 void ModbusHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 {
     uint8_t recv_status;
-    uint16_t recv_len;
         
 #if defined(USING_MODBUS_RTU)
     //获取一帧ModBus RTU数据
-    recv_status = MODBUS_RTU_RecvData(ModBusBaseParam->ModBus_TX_RX.Receive_Buf, &recv_len);
+    recv_status = MODBUS_RTU_RecvData(ModBusBaseParam->ModBus_TX_RX.Receive_Buf, 
+                                    &ModBusBaseParam->ModBus_TX_RX.Receive_Len);
 #elif defined(USING_MODBUS_ASCII)
     //获取一帧ModBus ASCII数据
-    recv_status = MODBUS_ASCII_RecvData(ModBusBaseParam->ModBus_TX_RX.Receive_Buf, &recv_len);
+    recv_status = MODBUS_ASCII_RecvData(ModBusBaseParam->ModBus_TX_RX.Receive_Buf, 
+                                    &ModBusBaseParam->ModBus_TX_RX.Receive_Len);
 #endif
     //校验错误，地址错误都不处理消息帧
     if( recv_status != ERR_NONE 

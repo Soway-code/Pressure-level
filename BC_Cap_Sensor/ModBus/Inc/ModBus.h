@@ -112,6 +112,7 @@ typedef struct {
     uint8_t *Send_Buf;                  ///< ModBus发送缓存指针
     uint16_t Send_Len;                  ///< ModBus发送缓存长度
     uint8_t *Receive_Buf;               ///< ModBus接收缓存指针
+    uint16_t Receive_Len;               ///< ModBus接收缓存长度
 }ModBus_TX_RX_TypeDef;
 
 /** ModBus处理的基本参数结构 */
@@ -127,6 +128,12 @@ typedef struct _ModBusBaseParam_TypeDef {
     ModBus_TX_RX_TypeDef ModBus_TX_RX;  ///< ModBus发送/接收处理结构体
 #ifdef USING_RT_THREAD_OS
     rt_sem_t TX_Lock;                   ///< 发送锁
+#endif
+    
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+    uint8_t ProgErase;                  ///< 程序擦除标志
+    int8_t UpgradeWaitTime;             ///< 升级等待时间
 #endif
     /** ModBus回调函数 */
     int     (*ModBus_CallBack) (struct _ModBusBaseParam_TypeDef *arg);

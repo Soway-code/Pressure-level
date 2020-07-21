@@ -1,14 +1,14 @@
 /**@file        In_Memory_app.h
 * @details      In_Memory_app.c的头文件,声明了内部存储器应用的API函数
 * @author       杨春林
-* @date         2020-07-07
-* @version      V1.0.0
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/07/07  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>创建初始版本
 * </table>
 *
 **********************************************************************************

@@ -24,10 +24,20 @@
 #include "main.h"
 #include "VariaType.h"
 
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+#define IN_FLASH_BASE_ADDRESS           0x0801E000                          ///< 操作Flash基地址
+#else
 #define IN_FLASH_BASE_ADDRESS           0x0801E800                          ///< 操作Flash基地址
+#endif
 
 #define IN_FLASH_START                  0x0000                              ///< Flash起始地址
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+#define IN_FLASH_END                    0x07FF                              ///< Flash结束地址
+#else
 #define IN_FLASH_END                    0x17FF                              ///< Flash结束地址
+#endif
 
 #define IN_FLASH_WR_ENABLE              0x0F                                ///< Flash写操作使能
 #define IN_FLASH_WR_DISABLE             0x00                                ///< Flash写操作禁止

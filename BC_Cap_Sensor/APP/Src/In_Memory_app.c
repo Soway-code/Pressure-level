@@ -1,15 +1,15 @@
 /**@file        In_Memory_app.c
 * @brief        读写内部存储器的应用
 * @details      内部存储器中读取或写入系统内部参数
-* @author       杨春林
-* @date         2020-07-07
-* @version      V1.0.0
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/07/07  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>维护并更新的版本
 * </table>
 *
 **********************************************************************************

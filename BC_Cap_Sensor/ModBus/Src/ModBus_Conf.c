@@ -25,6 +25,8 @@
 
 #ifdef __PICOCAP_APP_H
 
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifndef BOOT_PROGRAM
 static uint32_t Calib_CapMin;                   ///< 标定电容零点值
 static uint32_t Calib_CapMax;                   ///< 标定电容满点值
 static uint16_t Calib_CapDAMin;                 ///< 标定电容DA零点值
@@ -1439,6 +1441,13 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
         }        
     }
 }
+#endif // BOOT_PROGRAM
+
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+#include "common.h"
+#include "flash_if.h"
+#endif
 
 /**@brief       Modbus 41功能码消息帧处理
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
@@ -1447,7 +1456,192 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
 */
 void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
 {
-    uint16_t temp[2];
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+    
+    uint16_t WriteAddr;                     //寄存器地址    
+    uint16_t DataLen;                       //数据长度
+    uint16_t packetnum = 0;                 //总包数
+    uint16_t packetcnt;                     //包序号
+    uint16_t prt;                           //计数
+    uint32_t tpcksum;                       //包校验和
+    uint32_t *ramdata;                      //数据指针
+    static uint16_t PacketCnt;              // 包序号
+    static uint16_t PacketNum;              // 总包数
+    static uint32_t Flashadrdst;            // FLASH地址
+    static uint32_t FileCheckSum;           // 升级文件校验和
+    static uint32_t FileRunCheckSum;        // 升级文件实时校验和
+    
+    WriteAddr = (ModBusBaseParam->ModBus_TX_RX.Receive_Buf[2] << 8)
+                | ModBusBaseParam->ModBus_TX_RX.Receive_Buf[3];
+    DataLen = (ModBusBaseParam->ModBus_TX_RX.Receive_Buf[4] << 8)
+                | ModBusBaseParam->ModBus_TX_RX.Receive_Buf[5];
+    //寄存器地址无效
+    if( 
+#if defined(SUBCODE_IS_DEVADDR)
+        (WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
+#endif
+        (WriteAddr & 0xFF) < 1 
+        || (WriteAddr & 0xFF) > 4
+        || (DataLen != (ModBusBaseParam->ModBus_TX_RX.Receive_Len - 6)))
+    {
+        ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+        ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+        ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+        return;
+    }
+    
+    WriteAddr &= 0x00FF;
+    
+    //存储待发送信息
+    memcpy( ModBusBaseParam->ModBus_TX_RX.Send_Buf, 
+            ModBusBaseParam->ModBus_TX_RX.Receive_Buf,
+            4);
+    ModBusBaseParam->ModBus_TX_RX.Send_Len = 4;
+
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0x00;
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0x01;
+
+    switch(WriteAddr)
+    {
+        case 0x0001:                                                                                //开始升级      
+            ModBusBaseParam->UpgradeWaitTime = -1;        
+            if((0 != DataLen) && (2 != DataLen))
+            {
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+                break;
+            }
+            else 
+            {
+                if(DataLen == 2)
+                {
+                    packetnum = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6] * 256 
+                                + ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7];    //获取总包数
+                }
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+            }  
+            PacketNum = 0;
+            PacketCnt = 0;
+
+            if(packetnum > 0)
+            {           
+                InFlash_Erase_Page(0, 4);
+            }
+            break;
+          
+        case 0x0002:                                                                                //清除源程序
+            if(0 != DataLen)
+            {
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+                break;
+            }          
+            FLASH_If_Init();                                                                          //FLASH解锁
+            if(FLASH_If_GetWriteProtectionStatus() != FLASHIF_PROTECTION_NONE)
+            {
+                if(FLASH_If_WriteProtectionConfig(FLASHIF_WRP_DISABLE) == FLASHIF_OK)
+                {
+                    HAL_FLASH_OB_Launch();
+                }
+            }
+            FLASH_If_Erase(APPLICATION_ADDRESS);
+            Flashadrdst = APPLICATION_ADDRESS;
+            ModBusBaseParam->ProgErase = ERASE_FLAG;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+            InMemory_Write_OneByte(ADDR_ERASEFLAG, ERASE_FLAG);
+            break;
+
+        case 0x0003:                //传输升级文件
+            packetnum = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6] * 256 + ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7];    //获取总包数
+            packetcnt = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[8] * 256 + ModBusBaseParam->ModBus_TX_RX.Receive_Buf[9];
+            if((0 == PacketNum) && (1 < packetnum) && (0 == packetcnt))
+            {
+                FileCheckSum = 0;
+                FileRunCheckSum = 0;
+                PacketNum = packetnum;
+                PacketCnt = packetcnt;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+
+                for(prt = 0; prt < 4; prt++)
+                {
+                    FileCheckSum <<= 8;
+                    FileCheckSum += ModBusBaseParam->ModBus_TX_RX.Receive_Buf[10 + prt];
+                }
+            }
+            else if((PacketNum == packetnum) && (1 < packetnum) 
+                && (PacketCnt == (packetcnt - 1)) && (PacketNum > packetcnt))
+            {
+                tpcksum = 0;
+                DataLen = DataLen - 4;
+
+                for(prt = 0; prt < DataLen; prt++)
+                {
+                    tpcksum += ModBusBaseParam->ModBus_TX_RX.Receive_Buf[10 + prt];
+                }
+
+                Decoding(&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[10], DataLen);
+
+                for(prt = 0; prt < DataLen; prt++)
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Receive_Buf[prt] = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[10 + prt];
+                }
+                ramdata = (uint32_t*)ModBusBaseParam->ModBus_TX_RX.Receive_Buf;
+
+                if(FLASH_If_Write(Flashadrdst, ramdata, DataLen/4)  == 0)
+                {
+                    PacketCnt++;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+                    FileRunCheckSum += tpcksum;
+                    Flashadrdst += DataLen;
+                }
+                else
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+                }
+            }
+            else if((PacketNum == packetnum) && (1 < packetnum) 
+                && (PacketCnt == packetcnt) && (PacketNum > packetcnt))
+            {
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+            }
+            else
+            {
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+            }
+            break;
+
+        case 0x0004:                                                                                  //执行应用程序
+            if((((FileRunCheckSum == FileCheckSum) && ((PacketCnt + 1) == PacketNum)) 
+                || (0 == PacketNum))&&(0 == DataLen))
+            {
+                if(0 != PacketNum)
+                {
+                    ModBusBaseParam->UpgradeWaitTime = 0;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+                }
+                else if((ModBusBaseParam->ProgErase == ERASE_FLAG)
+                    || (ModBusBaseParam->ProgErase == ERASE_FLAG_NONE))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+                }
+                else
+                {
+                    ModBusBaseParam->UpgradeWaitTime = 0;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
+                }
+            }
+            else
+            {
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_LRC_ERR;
+            }
+            break;
+
+        default:
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
+            break;
+    }
+    
+#else
+    uint16_t temp[2];    
     
     temp[0] = ((uint16_t)ModBusBaseParam->ModBus_TX_RX.Receive_Buf[2] << 8) 
                 | ModBusBaseParam->ModBus_TX_RX.Receive_Buf[3];
@@ -1469,7 +1663,11 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 7;        
         ModBusBaseParam->ModBus_CallBack = MB_System_Reset;
     }
+#endif
 }
+
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifndef BOOT_PROGRAM
 
 /**@brief       Modbus 消息帧自动上传处理
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
@@ -1757,4 +1955,6 @@ static int MB_SendData_NoCheck(ModBusBaseParam_TypeDef *ModBusBaseParam)
     return OP_SUCCESS;
 }
 
-#endif
+#endif // BOOT_PROGRAM
+
+#endif // __PICOCAP_APP_H

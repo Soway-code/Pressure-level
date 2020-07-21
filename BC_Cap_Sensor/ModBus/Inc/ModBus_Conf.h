@@ -36,10 +36,14 @@
 #define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议
 #endif
 
+#if defined(APP_SUBCODE_IS_DEVADDR)
+#define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0
+#endif
+
 #else
 
-#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议, 还需要在 usart_app.h 里定义USING_UART_TIMEOUT
-//#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议, 还需要在 usart_app.h 里定义USING_CHARMATCH
+//#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议, 还需要在 usart_app.h 里定义USING_UART_TIMEOUT
+#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议, 还需要在 usart_app.h 里定义USING_CHARMATCH
 //#define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0
 
 #endif
@@ -47,6 +51,27 @@
 #define SEND_SIZE                       128              ///< 发送缓存大小
 
 #define DAC_VALUE_MAX   4095        ///< DAC最大值
+
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifdef BOOT_PROGRAM
+
+#define RESPONSE_ERR_NONE   0     //响应成功
+#define RESPONSE_REC_ERR    1     //接收错误
+#define RESPONSE_LRC_ERR    2     //校验码错误
+
+#define ADDR_DEVICEADDR     0   
+#define ADDR_ERASEFLAG      2046
+#define ADDR_UPGRADEFLAG    2047
+
+#define UPGRADED_DEVICEADDR     65
+
+#define ERASE_FLAG          0x0C
+#define ERASE_FLAG_NONE     0xFF
+
+#define UPGRADE_FLAG        0x0C
+#define UPGRADE_FLAG_NONE   0xFF
+
+#endif
 
 /** ModBus管理设备的参数结构,可根据不同的产品加入或删除成员 */
 typedef struct {
