@@ -59,20 +59,20 @@ IWG： 封装了初始化和喂狗(看门狗定时器重装载)的API函数，使用时，直接调用这些API
 函数，可实现初始化独立看门狗和喂狗的功能。
 
 重要的配置宏： 
-- IN_EEPROM_BASE_ADDRESS(操作内部EEPROM基地址)
-- IN_EEPROM_START(EEPROM起始地址)
-- IN_EEPROM_END(EEPROM结束地址)
-- IN_FLASH_BASE_ADDRESS(操作内部FLASH基地址)
-- IN_FLASH_START(FLASH起始地址)
-- IN_FLASH_END(FLASH结束地址)
-- USING_UART_TIMEOUT(使用接收超时)
-- USING_CHARMATCH(使用字符匹配)
-- USART_USING_485(串口485收发控制管脚使能)
-- DEFAULT_UART_TIMEOUT(默认超时时间，一般, 10表示1个字节时间)
-- DEFAULT_UART_MATCHCHAR(默认匹配的字符)
-- USING_MODBUS_RTU(使用ModBus RTU协议, 还需要定义USING_UART_TIMEOUT)
-- USING_MODBUS_ASCII(使用ModBus ASCII协议, 还需要定义USING_CHARMATCH)
-- SUBCODE_IS_DEVADDR(定义ModBus子码为设备地址，不定义则默认为0)
+- IN_EEPROM_BASE_ADDRESS	(操作内部EEPROM基地址)
+- IN_EEPROM_START			(EEPROM起始地址)
+- IN_EEPROM_END				(EEPROM结束地址)
+- IN_FLASH_BASE_ADDRESS		(操作内部FLASH基地址)
+- IN_FLASH_START			(FLASH起始地址)
+- IN_FLASH_END				(FLASH结束地址)
+- USING_UART_TIMEOUT		(使用接收超时)
+- USING_CHARMATCH			(使用字符匹配)
+- USART_USING_485			(串口485收发控制管脚使能)
+- DEFAULT_UART_TIMEOUT		(默认超时时间，一般, 10表示1个字节时间)
+- DEFAULT_UART_MATCHCHAR	(默认匹配的字符)
+- USING_MODBUS_RTU			(使用ModBus RTU协议, 还需要定义USING_UART_TIMEOUT)
+- USING_MODBUS_ASCII		(使用ModBus ASCII协议, 还需要定义USING_CHARMATCH)
+- SUBCODE_IS_DEVADDR		(定义ModBus子码为设备地址，不定义则默认为0)
 
 ## 注意事项
 
