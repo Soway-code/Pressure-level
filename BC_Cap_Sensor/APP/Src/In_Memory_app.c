@@ -1,21 +1,21 @@
-/**@file        In_Flash_app.c
-* @brief        读写内部Flash的应用
-* @details      从STM32F072的内部Flash中读取或写入系统内部参数
-* @author       杨春林
-* @date         2020-04-30
-* @version      V1.0.0
+/**@file        In_Memory_app.c
+* @brief        读写内部存储器的应用
+* @details      内部存储器中读取或写入系统内部参数
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/04/30  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>维护并更新的版本
 * </table>
 *
 **********************************************************************************
 */
 
-#include "In_Flash_app.h"
+#include "In_Memory_app.h"
 
 
 /** 默认系统参数 */
@@ -61,6 +61,74 @@ const uint8_t User_Default_Param[PRO_DEFAULT_LEN] =
     SYSTEMPARAM_IS_PROGRAMED                            //写入初始值标志                                                                    
 };
 
+
+/**@brief       向内部存储器指定位置写1个字节
+* @param[in]    RWAddr : 写起始地址
+* @param[in]    WrData : 要写入的数据;
+* @return       函数执行结果
+* - OP_SUCCESS(成功)
+* - OP_FAILED(失败)
+* @note         本函数通过调用内部Flash或EEPROM驱动API实现的
+*/
+uint8_t InMemory_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
+{
+#if defined(__IN_EEPROM_H)
+    return InEEPROM_Write_OneByte(RWAddr, WrData);
+#elif defined(__IN_FLASH_H)
+    return InFlash_Write_OneByte(RWAddr, WrData);
+#endif
+}
+
+/**@brief       向内部存储器指定位置读1个字节
+* @param[in]    RWAddr : 读起始地址
+* @return       函数执行结果
+* - 1个字节数据
+* @note         本函数通过调用内部Flash或EEPROM驱动API实现的
+*/
+uint8_t InMemory_Read_OneByte(uint16_t RWAddr)
+{
+#if defined(__IN_EEPROM_H)
+    return InEEPROM_Read_OneByte(RWAddr);
+#elif defined(__IN_FLASH_H)
+    return InFlash_Read_OneByte(RWAddr);
+#endif
+}
+/**@brief       向内部存储器指定位置写多个字节
+* @param[in]    RWAddr : 写起始地址
+* @param[in]    pWrbuf : 要写入的数据缓存指针;
+* @param[in]    Wrlen : 数据长度
+* @return       函数执行结果
+* - OP_SUCCESS(成功)
+* - OP_FAILED(失败)
+* @note         本函数通过调用内部Flash或EEPROM驱动API实现的
+*/
+uint8_t InMemory_Write_MultiBytes(uint16_t RWAddr, uint8_t const *pWrbuf, uint16_t Wrlen)
+{
+#if defined(__IN_EEPROM_H)
+    return InEEPROM_Write_MultiBytes(RWAddr, pWrbuf, Wrlen);
+#elif defined(__IN_FLASH_H)
+    return InFlash_Write_MultiBytes(RWAddr, pWrbuf, Wrlen);
+#endif
+}
+
+/**@brief       向内部存储器指定位置读多个字节
+* @param[in]    RWAddr : 读起始地址
+* @param[in]    pWrbuf : 要读取的数据缓存指针;
+* @param[in]    Wrlen : 数据长度
+* @return       函数执行结果
+* - OP_SUCCESS(成功)
+* - OP_FAILED(失败)
+* @note         本函数通过调用内部Flash或EEPROM驱动API实现的
+*/
+void InMemory_Read_MultiBytes(uint16_t RWAddr, uint8_t *pRdbuf, uint16_t Rdlen)
+{
+#if defined(__IN_EEPROM_H)
+    InEEPROM_Read_MultiBytes(RWAddr, pRdbuf, Rdlen);
+#elif defined(__IN_FLASH_H)
+    InFlash_Read_MultiBytes(RWAddr, pRdbuf, Rdlen);
+#endif
+}
+
 /**@brief       向STM32F072xx内部Flash指定位置写多个字节且备份3份
 * @param[in]    FlashAddr : 写起始地址
 * @param[in]    pWrbuf : 要写入的数据缓存指针;
@@ -69,7 +137,7 @@ const uint8_t User_Default_Param[PRO_DEFAULT_LEN] =
 * - OP_SUCCESS(成功)
 * - OP_FAILED(失败)
 */
-uint8_t InFlash_Write3T_MultiBytes(uint16_t FlashAddr, const uint8_t *pWrbuf, uint16_t Wrlen)
+uint8_t InMemory_Write3T_MultiBytes(uint16_t FlashAddr, const uint8_t *pWrbuf, uint16_t Wrlen)
 {
     //错误状态
     uint8_t Err;
@@ -83,19 +151,19 @@ uint8_t InFlash_Write3T_MultiBytes(uint16_t FlashAddr, const uint8_t *pWrbuf, ui
     EepAddress = FlashAddr;
 
     //系统参数存储区
-    Wrsta = InFlash_Write_MultiBytes(EepAddress, pWrbuf, Wrlen);
+    Wrsta = InMemory_Write_MultiBytes(EepAddress, pWrbuf, Wrlen);
     if(OP_SUCCESS != Wrsta)
     {
         Err = OP_FAILED;
     }
     //系统参数备份区1
-    Wrsta = InFlash_Write_MultiBytes(SYSTEM_PARAM_BAK1 + EepAddress, pWrbuf, Wrlen);
+    Wrsta = InMemory_Write_MultiBytes(SYSTEM_PARAM_BAK1 + EepAddress, pWrbuf, Wrlen);
     if(OP_SUCCESS != Wrsta)
     {
         Err = OP_FAILED;
     }
     //系统参数备份区2
-    Wrsta = InFlash_Write_MultiBytes(SYSTEM_PARAM_BAK2 + EepAddress, pWrbuf, Wrlen);
+    Wrsta = InMemory_Write_MultiBytes(SYSTEM_PARAM_BAK2 + EepAddress, pWrbuf, Wrlen);
     if(OP_SUCCESS != Wrsta)
     {
         Err = OP_FAILED;
@@ -111,7 +179,7 @@ uint8_t InFlash_Write3T_MultiBytes(uint16_t FlashAddr, const uint8_t *pWrbuf, ui
 * @return       函数执行结果
 * - None
 */
-void InFlash_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
+void InMemory_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
 {
     uint16_t Cnt;
     uint8_t Check_Sta;
@@ -123,9 +191,9 @@ void InFlash_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
         //检查状态
         Check_Sta = 0;
         //备份1
-        Cur_Param_Bak1 = InFlash_Read_OneByte((SYSTEM_PARAM_BAK1 + Cnt));
+        Cur_Param_Bak1 = InMemory_Read_OneByte((SYSTEM_PARAM_BAK1 + Cnt));
         //备份2
-        Cur_Param_Bak2 = InFlash_Read_OneByte((SYSTEM_PARAM_BAK2 + Cnt));
+        Cur_Param_Bak2 = InMemory_Read_OneByte((SYSTEM_PARAM_BAK2 + Cnt));
         //当前参数与备份1不同
         if(Cur_Param[Cnt] != Cur_Param_Bak1)
         {
@@ -144,17 +212,17 @@ void InFlash_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
         //备份2有误
         if(0x06 == Check_Sta)
         {
-            InFlash_Write_OneByte((SYSTEM_PARAM_BAK2 + Cnt), Cur_Param[Cnt]);
+            InMemory_Write_OneByte((SYSTEM_PARAM_BAK2 + Cnt), Cur_Param[Cnt]);
         }
         //备份1有误
         else if(0x03 == Check_Sta)
         {
-            InFlash_Write_OneByte((SYSTEM_PARAM_BAK1 + Cnt), Cur_Param[Cnt]);
+            InMemory_Write_OneByte((SYSTEM_PARAM_BAK1 + Cnt), Cur_Param[Cnt]);
         }
         //当前参数有误
         else if(0x05 == Check_Sta)
         {
-            InFlash_Write_OneByte((RUN_ADDR_BASE + Cnt), Cur_Param_Bak1);
+            InMemory_Write_OneByte((RUN_ADDR_BASE + Cnt), Cur_Param_Bak1);
         }
         else 
         {
@@ -165,15 +233,15 @@ void InFlash_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
         }
     }
 
-    if(InFlash_Read_OneByte(SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
+    if(InMemory_Read_OneByte(SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
     {
         goto write_systemparam;
     }
-    if(InFlash_Read_OneByte(SYSTEM_PARAM_BAK1 + SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
+    if(InMemory_Read_OneByte(SYSTEM_PARAM_BAK1 + SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
     {
         goto write_systemparam;
     }
-    if(InFlash_Read_OneByte(SYSTEM_PARAM_BAK2 + SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
+    if(InMemory_Read_OneByte(SYSTEM_PARAM_BAK2 + SYSTEMPARAM_PROGRAMED) != SYSTEMPARAM_IS_PROGRAMED)
     {
         goto write_systemparam;
     }
@@ -182,7 +250,7 @@ void InFlash_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param)
     {
 write_systemparam:
         //写入系统参数缺省值到三份地址区
-        InFlash_Write3T_MultiBytes(RUN_ADDR_BASE, User_Default_Param, Num_Of_Cur_Param);
+        InMemory_Write3T_MultiBytes(RUN_ADDR_BASE, User_Default_Param, Num_Of_Cur_Param);
     }
 }
 
@@ -192,21 +260,21 @@ write_systemparam:
 */
 void Check_Device_Param(void)
 {
-    uint8_t InFlashInitFlg;
+    uint8_t InMemoryInitFlg;
     uint16_t ParaTemp;
     uint8_t Device_Param[PRO_DEFAULT_LEN];
 
     //读取系统参数初始化标志
-    InFlashInitFlg = InFlash_Read_OneByte(RUN_ADDR_BASE);
+    InMemoryInitFlg = InMemory_Read_OneByte(RUN_ADDR_BASE);
 
     //如果没有初始化就写入用户基本参数，标定的参数不能动
-    if(InFlashInitFlg != User_Default_Param[RUN_ADDR_BASE])
+    if(InMemoryInitFlg != User_Default_Param[RUN_ADDR_BASE])
     {
         ParaTemp = 0;
-        while(OP_SUCCESS != InFlash_Write3T_MultiBytes(RUN_ADDR_BASE, User_Default_Param, USER_DEFAULT_LEN))
+        while(OP_SUCCESS != InMemory_Write3T_MultiBytes(RUN_ADDR_BASE, User_Default_Param, USER_DEFAULT_LEN))
         {
             ParaTemp++;
-            if(WRITE_FLASH_ERR_MAX < ParaTemp)
+            if(IN_MEMORY_ERR_MAX < ParaTemp)
             {
             break;
             }
@@ -214,9 +282,9 @@ void Check_Device_Param(void)
     }
 
     //读取系统参数，存入Device_Param缓存
-    InFlash_Read_MultiBytes(RUN_ADDR_BASE, Device_Param, PRO_DEFAULT_LEN);
+    InMemory_Read_MultiBytes(RUN_ADDR_BASE, Device_Param, PRO_DEFAULT_LEN);
 
     //检查系统参数
-    InFlash_SystemParam_Check(Device_Param, PRO_DEFAULT_LEN);
+    InMemory_SystemParam_Check(Device_Param, PRO_DEFAULT_LEN);
 }
 

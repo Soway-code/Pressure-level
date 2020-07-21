@@ -270,23 +270,27 @@ void HAL_UART_RxTimoCallback(UART_HandleTypeDef *huart)
 {
     uint16_t rx_buf_used;
     
+    /* 获取当前DMA缓存占用长度，单位：byte */
     rx_buf_used = huart->RxXferSize - __HAL_DMA_GET_COUNTER(huart->hdmarx);
-    if(RX_OverRun_Flag)
+    if(RX_OverRun_Flag)         //接收溢出标志
     {
+        /* 计算当前接收的数据长度 */
         RX_Len = rx_buf_used + huart->RxXferSize - Used_RX_Len;        
-        RX_OverRun_Flag = 0;
+        RX_OverRun_Flag = 0;    //接收溢出标志清零
     }
     else
     {
+        /* 计算当前接收的数据长度 */
         RX_Len = rx_buf_used - Used_RX_Len;    
     }
+    /* 当前DMA缓存占用长度 */
     Used_RX_Len = rx_buf_used;
     
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */    
 #ifdef USING_RT_THREAD_OS
     rt_sem_release(&usart_sem);     //释放信号量
 #endif
-    RX_Updata_Flag = 1;
+    RX_Updata_Flag = 1;         //接收更新标志置1
 }
 #endif
 
@@ -301,23 +305,27 @@ void HAL_UART_CMatchCallback(UART_HandleTypeDef *huart)
 {
     uint16_t rx_buf_used;
     
+    /* 获取当前DMA缓存占用长度，单位：byte */
     rx_buf_used = huart->RxXferSize - __HAL_DMA_GET_COUNTER(huart->hdmarx);
-    if(RX_OverRun_Flag)
+    if(RX_OverRun_Flag)         //接收溢出标志
     {
+        /* 计算当前接收的数据长度 */
         RX_Len = rx_buf_used + huart->RxXferSize - Used_RX_Len;        
-        RX_OverRun_Flag = 0;
+        RX_OverRun_Flag = 0;    //接收溢出标志清零
     }
     else
     {
+        /* 计算当前接收的数据长度 */
         RX_Len = rx_buf_used - Used_RX_Len;    
     }
+    /* 当前DMA缓存占用长度 */
     Used_RX_Len = rx_buf_used;
     
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */    
 #ifdef USING_RT_THREAD_OS
     rt_sem_release(&usart_sem);     //释放信号量
 #endif
-    RX_Updata_Flag = 1;
+    RX_Updata_Flag = 1;         //接收更新标志置1
 }
 #endif
 

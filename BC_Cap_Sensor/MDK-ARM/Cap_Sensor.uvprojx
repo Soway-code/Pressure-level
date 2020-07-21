@@ -82,7 +82,7 @@
           <AfterMake>
             <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name>D:\Keil_v5\ARM\ARMCC\bin\fromelf.exe --bin -o .\Cap_Sensor\Cap_Sensor.bin .\Cap_Sensor\Cap_Sensor.axf</UserProg1Name>
+            <UserProg1Name>fromelf --bin !L --output Exe/Cap_Sensor.bin</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -134,11 +134,11 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>4107</DriverSelection>
+            <DriverSelection>4101</DriverSelection>
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>STLink\ST-LINKIII-KEIL_SWO.dll</Flash2>
-          <Flash3></Flash3>
+          <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -275,7 +275,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x8003000</StartAddress>
-                <Size>0x1b000</Size>
+                <Size>0x1d000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -312,7 +312,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>4</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F072xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;       ../Drivers/STM32F0xx_HAL_Driver/Inc;       ../Drivers/STM32F0xx_HAL_Driver/Inc/Legacy;       ../Drivers/CMSIS/Device/ST/STM32F0xx/Include;       ../Drivers/CMSIS/Include;       ..\BSP\Inc;       ..\APP\Inc</IncludePath>
+              <IncludePath>../Inc;../Drivers/STM32F0xx_HAL_Driver/Inc;../Drivers/STM32F0xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F0xx/Include;../Drivers/CMSIS/Include;..\BSP\Inc;..\APP\Inc;..\ModBus\Inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -433,19 +433,9 @@
               <FilePath>..\APP\Src\TypeConvert.c</FilePath>
             </File>
             <File>
-              <FileName>In_Flash_app.c</FileName>
+              <FileName>In_Memory_app.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\APP\Src\In_Flash_app.c</FilePath>
-            </File>
-            <File>
-              <FileName>ModBusRtu.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\APP\Src\ModBusRtu.c</FilePath>
-            </File>
-            <File>
-              <FileName>ModBus_Conf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\APP\Src\ModBus_Conf.c</FilePath>
+              <FilePath>..\APP\Src\In_Memory_app.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -486,6 +476,31 @@
               <FileName>usart_bsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\Src\usart_bsp.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>ModBus</GroupName>
+          <Files>
+            <File>
+              <FileName>ModBus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ModBus\Src\ModBus.c</FilePath>
+            </File>
+            <File>
+              <FileName>ModBus_ASCII.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ModBus\Src\ModBus_ASCII.c</FilePath>
+            </File>
+            <File>
+              <FileName>ModBus_Conf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ModBus\Src\ModBus_Conf.c</FilePath>
+            </File>
+            <File>
+              <FileName>ModBus_RTU.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ModBus\Src\ModBus_RTU.c</FilePath>
             </File>
           </Files>
         </Group>

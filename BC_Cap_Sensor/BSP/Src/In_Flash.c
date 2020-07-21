@@ -18,7 +18,7 @@
 #include "In_Flash.h"
 
 
-static uint32_t Flash_Buf[FLASH_PAGE_SIZE / 4];    ///< 临时缓存
+static uint64_t Flash_Buf[FLASH_PAGE_SIZE / 8];    ///< 临时缓存
 
 
 /**@brief       向内部Flash指定位置写入一字节数据
@@ -52,10 +52,10 @@ uint8_t InFlash_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
     }
     //__disable_irq();    
     HAL_FLASH_Unlock();
-    for(i = 0; i < FLASH_PAGE_SIZE; i += 4)
+    for(i = 0; i < FLASH_PAGE_SIZE; i += 8)
     {
-        Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, 
-                                        (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint32_t)Flash_Buf[i / 4]);
+        Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, 
+                                        (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint64_t)Flash_Buf[i / 8]);
         if(HAL_OK != Halstatus)
             break;
     }
@@ -129,10 +129,10 @@ uint8_t InFlash_Write_MultiBytes(uint16_t RWAddr, uint8_t const *pWrbuf, uint16_
             break;
         //__disable_irq();        
         HAL_FLASH_Unlock();                        
-        for(i = 0; i < FLASH_PAGE_SIZE; i += 4)
+        for(i = 0; i < FLASH_PAGE_SIZE; i += 8)
         {
-            Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, 
-                                        (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint32_t)Flash_Buf[i / 4]);
+            Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, 
+                                        (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint64_t)Flash_Buf[i / 8]);
             if(HAL_OK != Halstatus)
             {
                 HAL_FLASH_Lock();
@@ -181,6 +181,17 @@ void InFlash_Read_MultiBytes(uint16_t RWAddr, uint8_t *pRdbuf, uint16_t Rdlen)
   }
 }
 
+#if defined(STM32G0)
+/**@brief  根据输入的地址得到 Flash 页编号
+* @param[in]  Addr: 内部 FLASH 的地址
+* @return       函数执行结果
+* - Flash 页编号
+  */
+static uint32_t GetPage(uint32_t Addr)
+{
+  return (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;;
+}
+#endif
 /**@brief       向内部Flash指定位置擦除页
 * @param[in]    RWAddr : 擦除起始地址
 * @param[in]    PageNb : 擦除页数目
@@ -199,7 +210,11 @@ uint8_t InFlash_Erase_Page(uint16_t RWAddr, uint8_t PageNb)
     EepAddress = (RWAddr / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
     EepAddress += IN_FLASH_BASE_ADDRESS;
     EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
+#if defined(STM32G0)
+    EraseInitStruct.Page        = GetPage(EepAddress);
+#else
     EraseInitStruct.PageAddress = EepAddress;
+#endif
     EraseInitStruct.NbPages = PageNb;
     HAL_FLASH_Unlock();    
     sta = HAL_FLASHEx_Erase(&EraseInitStruct, &PageError);

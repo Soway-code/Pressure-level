@@ -27,7 +27,7 @@
 
 /* USER CODE END 0 */
 
-static UART_HandleTypeDef huart;        ///< 串口处理对象
+UART_HandleTypeDef huart;        ///< 串口处理对象
 static DMA_HandleTypeDef hdma_usart_rx; ///< 串口接收DMA处理对象
 static DMA_HandleTypeDef hdma_usart_tx; ///< 串口发送DMA处理对象
 
@@ -88,9 +88,10 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 {
 
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    USARTx_CLK_ENABLE();
-    DMAx_CLK_ENABLE();
+    
+    DMAx_CLK_ENABLE();    
+    
+    USARTx_CLK_ENABLE();    
   
     USARTx_TX_GPIO_CLK_ENABLE();
     USARTx_RX_GPIO_CLK_ENABLE();
@@ -109,6 +110,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     /* USART1 DMA Init */
     /* USART1_RX Init */
     hdma_usart_rx.Instance = USARTx_RX_DMA_STREAM;
+#if defined(STM32L0)
+    hdma_usart_rx.Init.Request = USARTx_RX_DMA_REQUEST;
+#endif
     hdma_usart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_usart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_rx.Init.MemInc = DMA_MINC_ENABLE;
@@ -125,13 +129,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 
     /* USART1_TX Init */
     hdma_usart_tx.Instance = USARTx_TX_DMA_STREAM;
+#if defined(STM32L0)
+    hdma_usart_tx.Init.Request = USARTx_TX_DMA_REQUEST;
+#endif
     hdma_usart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_usart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_tx.Init.MemInc = DMA_MINC_ENABLE;
     hdma_usart_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     hdma_usart_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     hdma_usart_tx.Init.Mode = DMA_NORMAL;
-    hdma_usart_tx.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_usart_tx.Init.Priority = DMA_PRIORITY_MEDIUM;
     if (HAL_DMA_Init(&hdma_usart_tx) != HAL_OK)
     {
       Error_Handler();
@@ -139,11 +146,11 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 
     __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart_tx);
 
-    /* USART1 interrupt Init */
+    /* USART1 interrupt Init */    
     HAL_NVIC_SetPriority(USARTx_DMA_TX_RX_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(USARTx_DMA_TX_RX_IRQn);
     
-    HAL_NVIC_SetPriority(USARTx_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(USARTx_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(USARTx_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
 
@@ -218,13 +225,13 @@ uint8_t BSP_UART_Receive_DMA(uint8_t *pData, uint16_t Size)
 */
 void BSP_UART_ReceiverTimeout_Config(uint32_t TimeoutValue)
 {
-    HAL_UART_DisableReceiverTimeout(&huart);
-    __HAL_UART_DISABLE_IT(&huart, UART_IT_RTO);
+    LL_USART_DisableRxTimeout(huart.Instance);
+    LL_USART_DisableIT_RTO(huart.Instance);
     
-    HAL_UART_ReceiverTimeout_Config(&huart, TimeoutValue);
+    LL_USART_SetRxTimeout(huart.Instance, TimeoutValue);
     
-    HAL_UART_EnableReceiverTimeout(&huart);
-    __HAL_UART_ENABLE_IT(&huart, UART_IT_RTO);
+    LL_USART_EnableRxTimeout(huart.Instance);
+    LL_USART_EnableIT_RTO(huart.Instance);
 }
 
 /**@brief       串口配置字符匹配中断
@@ -234,19 +241,25 @@ void BSP_UART_ReceiverTimeout_Config(uint32_t TimeoutValue)
 */
 void BSP_UART_CharMatch_Config(uint8_t Value)
 {
-    uint32_t usart_cr1;
+    uint32_t USART_Status;
     
     assert_param(IS_UART_ADDRESSLENGTH_DETECT(WakeUpSelection.AddressLength));
     
-    usart_cr1 = READ_BIT(huart.Instance->CR1, USART_CR1_RE | USART_CR1_UE);
-    CLEAR_BIT(huart.Instance->CR1, usart_cr1);
-    __HAL_UART_DISABLE_IT(&huart, UART_IT_CM);
+    USART_Status = LL_USART_IsEnabled(huart.Instance);
+    if(USART_Status)
+    {
+        LL_USART_Disable(huart.Instance);
+    }
+    LL_USART_DisableIT_CM(huart.Instance);
   
-    MODIFY_REG(huart.Instance->CR2, USART_CR2_ADDM7, UART_ADDRESS_DETECT_7B);
-    MODIFY_REG(huart.Instance->CR2, USART_CR2_ADD, ((uint32_t)Value << UART_CR2_ADDRESS_LSB_POS));
+    /* 这句用于配置字符长度和匹配的字符，这里配置为8位长度的字符 */
+    LL_USART_ConfigNodeAddress(huart.Instance, LL_USART_ADDRESS_DETECT_7B, Value);  
     
-    __HAL_UART_ENABLE_IT(&huart, UART_IT_CM);
-    SET_BIT(huart.Instance->CR1, usart_cr1);
+    LL_USART_EnableIT_CM(huart.Instance);
+    if(USART_Status)
+    {
+        LL_USART_Enable(huart.Instance);
+    }
 }
 
 /**@brief       串口接收超时中断回调函数
@@ -304,9 +317,9 @@ void USARTx_IRQHandler(void)
     rt_interrupt_enter();
 #endif
     
-    if(__HAL_UART_GET_IT(&huart, UART_IT_RTO))
+    if(LL_USART_IsActiveFlag_RTO(huart.Instance))
     {
-        __HAL_UART_CLEAR_FLAG(&huart, UART_CLEAR_RTOF);    
+        LL_USART_ClearFlag_RTO(huart.Instance);
         HAL_UART_RxTimoCallback(&huart);
     }
     

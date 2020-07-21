@@ -45,7 +45,7 @@ void BSP_ADC_Init(void)
   ADC_ChannelConfTypeDef sConfig = {0};
 
   hadc.Instance = ADCx;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
@@ -58,18 +58,21 @@ void BSP_ADC_Init(void)
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc.Init.DMAContinuousRequests = ENABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+#if defined(STM32L0)
+  hadc.Init.OversamplingMode = DISABLE;
+  hadc.Init.SamplingTime = ADC_SAMPLETIME_160CYCLES_5;
+  hadc.Init.LowPowerFrequencyMode = DISABLE;
+#endif
+  
   if (HAL_ADC_Init(&hadc) != HAL_OK)
   {
     Error_Handler();
-  }
-  
-  if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  }  
   
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
+#if defined(STM32F0)
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+#endif
 
 #ifdef ADC_CHANNEL_0_ENABLE
   sConfig.Channel = ADC_CHANNEL_0;
@@ -142,6 +145,15 @@ void BSP_ADC_Init(void)
     Error_Handler();
   }
 #endif
+  
+  if (HAL_ADCEx_Calibration_Start(&hadc
+#if defined(STM32L0)
+    , ADC_SINGLE_ENDED
+#endif
+      ) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
 #endif
 }
@@ -164,6 +176,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     /* DMA controller clock enable */
     DMAx_CHANNELx_CLK_ENABLE();
+        
     /* ADC1 clock enable */
     ADCx_CLK_ENABLE();      
 
@@ -212,13 +225,16 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     /* ADC1 DMA Init */
     /* ADC Init */
     hdma_adc.Instance = ADCx_DMA_STREAM;
+#if defined(STM32L0)
+    hdma_adc.Init.Request = ADCx_DMA_REQUEST;
+#endif
     hdma_adc.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_adc.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_adc.Init.MemInc = DMA_MINC_ENABLE;
     hdma_adc.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_adc.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc.Init.Mode = DMA_CIRCULAR;
-    hdma_adc.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_adc.Init.Priority = DMA_PRIORITY_LOW;
     if (HAL_DMA_Init(&hdma_adc) != HAL_OK)
     {
       Error_Handler();
@@ -228,10 +244,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     /* DMA interrupt init */
     /* DMA1_Channel1_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(ADCx_DMA_TX_RX_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(ADCx_DMA_TX_RX_IRQn);
+    HAL_NVIC_SetPriority(ADCx_DMA_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(ADCx_DMA_IRQn);
     /* ADC1 interrupt Init */
-    HAL_NVIC_SetPriority(ADCx_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(ADCx_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(ADCx_IRQn);
   /* USER CODE BEGIN ADC1_MspInit 1 */
 
@@ -326,25 +342,18 @@ uint8_t BSP_ADC_Start_DMA(uint32_t *pData, uint32_t Length)
     {
         return OP_FAILED;
     }
+    __HAL_DMA_DISABLE_IT(hadc.DMA_Handle, DMA_IT_HT);
     return OP_SUCCESS;
 }
 
-/**@brief       ADC转换开始
-* @return       函数执行结果
-* - None
-*/
-void BSP_ADC_Conver_Start(void)
+void BSP_ADC_DMA_Enable_IT(void)
 {
-    SET_BIT(hadc.Instance->CR, ADC_CR_ADSTART);
+    __HAL_DMA_ENABLE_IT(hadc.DMA_Handle, DMA_IT_TC);
 }
 
-/**@brief       ADC转换停止
-* @return       函数执行结果
-* - None
-*/
-void BSP_ADC_Conver_Stop(void)
+void BSP_ADC_DMA_Disable_IT(void)
 {
-    SET_BIT(hadc.Instance->CR, ADC_CR_ADSTP);
+    __HAL_DMA_DISABLE_IT(hadc.DMA_Handle, DMA_IT_TC);
 }
 
 /**@brief       ADC DMA中断服务函数
@@ -352,7 +361,7 @@ void BSP_ADC_Conver_Stop(void)
 * - None
 * @note         USER_ADC_DMA_IRQHANDLER在adc_bsp.h中定义
 */
-void ADCx_DMA_TX_RX_IRQHandler(void)
+void ADCx_DMA_IRQHandler(void)
 {
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS

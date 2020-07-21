@@ -21,7 +21,7 @@
 #endif
 
 #include "Picocap.h"
-#include "In_Flash_app.h"
+#include "In_Memory_app.h"
 
 
 #define PCAP_COLLECT_CYCLE              100     ///< PCap采集周期，单位 ms
@@ -105,7 +105,7 @@ struct rt_pcap_device_obj {
 */
 void SwitchCurFilter(uint8_t FiltFactor, DataFilterParam *FilterParam);
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化数据滤波需要的参数结构
 * @param[in]    Filterfactor_CountMax : 滤波系数和累计输入的最大值,滤波系数在高8位,
@@ -113,8 +113,8 @@ void SwitchCurFilter(uint8_t FiltFactor, DataFilterParam *FilterParam);
 * @param[out]   FilterParam : 数据滤波需要的参数结构指针;
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_CountMax);
 #else
@@ -132,14 +132,14 @@ void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_Co
                             uint32_t InputRangeMax, uint32_t InputRangeMin);
 #endif
 
-#ifdef __IN_FLASH_APP_H
+#ifdef __IN_MEMORY_APP_H
 
 /**@brief       初始化数据转换需要的参数结构
 * @param[out]   DataConvert_Param : 数据转换需要的参数结构指针;
 * @return       函数执行结果
 * - None
-* @note         要使用本函数,要加入In_Flash_app.c、In_Flash_app.h、
-* In_Flash.ch和In_Flash.h文件
+* @note         要使用本函数,要加入In_Memory_app.c、In_Memory_app.h、
+* In_Flash.c和In_Flash.h文件(STM32L0系列则加入In_EEPROM.c和In_EEPROM.h文件)
 */
 void DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param);
 #else
@@ -165,11 +165,12 @@ uint8_t DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param, uint8_t
 /**@brief       获取PCap原始采集值
 * @param[in]    reg_addr : 结果寄存器的地址;
 * @param[out]   PCap_Result : 保存PCap的输出结果;
+* @param[in]    Read_Cnt : 读取的电容个数;
 * @return       函数执行结果
 * - OP_SUCCESS(操作成功)
 * - OP_FAILED(操作失败)
 */
-uint8_t Sensor_PCap_GetResult(uint8_t reg_addr, uint32_t *PCap_Result);
+uint8_t Sensor_PCap_GetResult(uint8_t reg_addr, uint32_t *PCap_Result, uint8_t Read_Cnt);
 
 /**@brief       数据按指定滤波参数进行滤波
 * @param[in]    FilterParam : 指定滤波参数结构体;

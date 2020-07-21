@@ -59,7 +59,7 @@ enum {
 
 /* Notable Flash addresses */
 #define FLASH_START		              ((uint32_t)0x08000000)
-#define USER_FLASH_END_ADDRESS        0x0801F000
+#define USER_FLASH_END_ADDRESS        0x0801E000
 
 /* Define the user application size */
 #define USER_FLASH_SIZE               ((uint32_t)0x00003000) /* Small default template application */

@@ -1,14 +1,14 @@
 /**@file        modbus_ascii.h
 * @details      modbus_ascii.c的头文件,声明了ModBus ASCII数据处理的API函数
-* @author       杨春林
-* @date         2020-06-04
-* @version      V1.0.0
+* @author       庄明群
+* @date         2020-07-20
+* @version      V2.0.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
-* <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/06/04  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
+* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>新添加的程序代码(ASCII协议部分)
 * </table>
 *
 **********************************************************************************
@@ -20,8 +20,7 @@
  extern "C" {
 #endif
      
-#include "stm32f0xx.h"
-#include "common.h"
+#include "ModBus.h"
 
 
 #define CMD_STRING_SIZE       128
@@ -33,11 +32,6 @@
 #define ASCII_HEAD_STATE  0     //头
 #define ASCII_END_STATE   1     //结束
 #define ASCII_IDLE_STATE  2     //空闲
-
-#define ERR_NONE            0
-#define ERR_ASCII           1
-#define ERR_LRC             2
-#define ERR_INVALID_DATA    3
 
 #define ASCII_HEAD_DATA         ':'         //包头第一个字节
 #define ASCII_TAIL_FIRST_DATA   '\r'        //包尾第一个字节
@@ -94,7 +88,7 @@ uint16_t MODBUS_ASCII_RtuPacketToAsciiPacket(uint8_t *pCyRtuBuf, uint16_t cyRtuL
 */
 uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen);
 
-/**@brief       获取一包数据
+/**@brief       获取一包 ModBus ASCII 数据
 * @param[in]    cyRecvBuff : 接收缓存指针
 * @param[in]    cyLen : 接收的数据长度
 * @return       函数执行结果
@@ -105,14 +99,14 @@ uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen);
 */
 uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen);
 
-/**@brief       发送一包数据
+/**@brief       发送一包 ModBus ASCII 数据
 * @param[in]    cySendBuff : 发送缓存指针
 * @param[in]    cyLen : 发送的数据长度
 * @return       函数执行结果
 * - OP_SUCCESS(成功)
 * - OP_FAILED(失败)
 */
-uint8_t MODBUS_ASCII_SendData(uint8_t *cySendBuff, uint16_t cyLen);
+uint8_t MODBUS_ASCII_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *cySendBuff, uint16_t cyLen, uint8_t Check_Addr);
 
 #ifdef __cplusplus
 }
