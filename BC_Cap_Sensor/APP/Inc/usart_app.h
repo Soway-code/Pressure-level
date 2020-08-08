@@ -44,7 +44,7 @@
 #else
 /** 接收缓存的大小 */
 #define RECEIVE_SIZE                    128
-#endif
+#endif // BOOT_PROGRAM
 
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
@@ -54,32 +54,32 @@
 #define USING_UART_TIMEOUT              ///< 使用接收超时
 #elif defined(APP_USING_MODBUS_ASCII)
 #define USING_CHARMATCH                 ///< 使用字符匹配
-#endif
+#endif // defined(APP_USING_MODBUS_RTU) or defined(APP_USING_MODBUS_ASCII)
 
 #if defined(APP_USING_USART_485)
 /** 串口485收发控制管脚使能 */
 #define USART_USING_485
-#endif
+#endif // defined(APP_USING_USART_485)
 
 #else
 
-//#define USING_UART_TIMEOUT              ///< 使用接收超时
-#define USING_CHARMATCH                 ///< 使用字符匹配
+#define USING_UART_TIMEOUT              ///< 使用接收超时
+//#define USING_CHARMATCH                 ///< 使用字符匹配
 
 /** 串口485收发控制管脚使能 */
 #define USART_USING_485
 
-#endif
+#endif // USING_RT_THREAD_OS
 
 #ifdef  USING_UART_TIMEOUT
 /** 默认超时时间，10表示1个字节时间 */
 #define DEFAULT_UART_TIMEOUT            35
-#endif
+#endif // USING_UART_TIMEOUT
 
 #ifdef  USING_CHARMATCH
 /** 默认匹配的字符 */
 #define DEFAULT_UART_MATCHCHAR          0x0A
-#endif
+#endif // USING_CHARMATCH
 
 
 
@@ -90,14 +90,15 @@
 
 #define TX_ON   HAL_GPIO_WritePin(_485_RE_DE_GPIO_PORT, _485_RE_DE_PIN, GPIO_PIN_SET)
 #define RX_ON   HAL_GPIO_WritePin(_485_RE_DE_GPIO_PORT, _485_RE_DE_PIN, GPIO_PIN_RESET)
-#endif
+#endif // USART_USING_485
 
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
 
-#define USART_TX_LOCK_NAME  "tx_lock"
+#define USART_TX_LOCK_NAME  "tx_lock"       // 串口发送锁名称
+#define USART_RX_LOCK_NAME  "rx_lock"       // 串口接收锁名称
 
-#endif
+#endif // USING_RT_THREAD_OS
 
 
 /**@brief       根据波特率和奇偶校验参数初始化传感器串口
@@ -129,10 +130,18 @@ uint16_t Sensor_USART_Get_RX_Len(void);
 uint16_t Sensor_USART_Get_RXBuf_Used_Len(void);
 
 /**@brief       获取接收更新标志
+* @param[in]    time : 如果使用 rt-thread 操作系统则输入信号量等待时间, 
+* 单位为系统时钟节拍
 * @return       函数执行结果
 * - 接收更新标志
 */
-uint8_t Sensor_USART_Get_RX_Updata_Flag(void);
+uint8_t Sensor_USART_Get_RX_Updata_Flag(
+#ifdef USING_RT_THREAD_OS
+int32_t time
+#else
+void
+#endif // USING_RT_THREAD_OS
+);
 
 /**@brief       获取发送完成标志
 * @return       函数执行结果
@@ -155,4 +164,4 @@ void Sensor_USART_Clear_TX_Cplt_Flag(void);
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __USART_APP_H

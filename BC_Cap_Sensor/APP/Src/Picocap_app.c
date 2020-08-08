@@ -135,7 +135,7 @@ void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_Co
     FilterParam->InputRangeMax = InputRangeMax;
     FilterParam->InputRangeMin = InputRangeMin;
 }
-#endif
+#endif // __IN_MEMORY_APP_H
 
 #ifdef __IN_MEMORY_APP_H
 
@@ -248,7 +248,7 @@ uint8_t DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param, uint8_t
         cnt += 2;    
         DataConvert_Param->Correct_K = (float)((Param[cnt] << 8) | Param[cnt + 1]) / 100.0;
         cnt += 2;
-        DataConvert_Param->Correct_B = (float)((Param[cnt] << 8) | Param[cnt + 1]) / 100.0;
+        DataConvert_Param->Correct_B = (float)((Param[cnt] << 8) | Param[cnt + 1]) - 100.0;
         
         DataConvert_Param->CapDA_ClibEn = DAOUTCLIB_DISABLE;    //电容DA标定失能
         
@@ -260,12 +260,12 @@ uint8_t DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param, uint8_t
     }       
     return OP_FAILED;
 }
-#endif
+#endif // __IN_MEMORY_APP_H
 
 /**@brief       获取PCap原始采集值
 * @param[in]    reg_addr : 结果寄存器的地址;
 * @param[out]   PCap_Result : 保存PCap的输出结果;
-* @param[in]    Read_Cnt : 读取的电容个数;
+* @param[in]    Read_Cnt : 读取结果的个数;
 * @return       函数执行结果
 * - OP_SUCCESS(操作成功)
 * - OP_FAILED(操作失败)
@@ -438,16 +438,16 @@ void Sensor_PCap_DataConvert(PCap_DataConvert_Param *DataConvert_Param,
                                 PCap_DataConvert_Out_Param *DataConvert_Out)
 {
     uint16_t LiquidHeightAD;
-    uint32_t PCap_Result;
+    float PCap_Result;
     float LiquidHeightRate;
     float Rate;
     //补偿使能,修正K,B值
     if(DataConvert_Param->CompenEn == COMPENSATE_ENABLE)        
     {
-        PCap_Result = (uint32_t)(InputValue * DataConvert_Param->Correct_K 
-                                + (DataConvert_Param->Correct_B - 100));
+        PCap_Result = InputValue * DataConvert_Param->Correct_K 
+                                + DataConvert_Param->Correct_B;
     }
-    else
+    else if(DataConvert_Param->CompenEn == COMPENSATE_DISABLE)        
     {
         PCap_Result = InputValue;
     }
@@ -621,10 +621,10 @@ static int pcap_device_init(void)
     
     pcap_device_obj.dev.user_data = &pcap_device_obj;
     
-    DataFilterParam_Init(&pcap_device_obj.DataFilter, DATA_BUF_MAX);   //滤波参数初始化
-    DataConvertParam_Init(&pcap_device_obj.PCap_DataConvert); 
+    DataFilterParam_Init(&pcap_device_obj.DataFilter, DATA_BUF_MAX);    // 滤波参数初始化
+    DataConvertParam_Init(&pcap_device_obj.PCap_DataConvert);           // PCap数据转换参数初始化
     
-    rt_device_register(&pcap_device_obj.dev, PCAP_DEVICE_NAME, 
+    rt_device_register(&pcap_device_obj.dev, PCAP_DEVICE_NAME,          // 注册Pcap设备
                         RT_DEVICE_FLAG_RDWR
                         | RT_DEVICE_FLAG_STANDALONE);
     
@@ -632,5 +632,5 @@ static int pcap_device_init(void)
 }
 INIT_DEVICE_EXPORT(pcap_device_init);
 
-#endif
+#endif // USING_RT_THREAD_OS
 

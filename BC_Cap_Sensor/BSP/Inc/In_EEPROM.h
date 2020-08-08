@@ -24,15 +24,15 @@
 #include "main.h"
 #include "VariaType.h"
 
-#define IN_EEPROM_BASE_ADDRESS           0x08080000                          ///< 操作EEPROM基地址
+#define IN_EEPROM_BASE_ADDRESS      DATA_EEPROM_BASE                   ///< 操作EEPROM基地址
 
-#define IN_EEPROM_START                  0x0000                              ///< EEPROM起始地址
-#define IN_EEPROM_END                    0x17FF                              ///< EEPROM结束地址
+#define IN_EEPROM_START             0x0000                              ///< EEPROM起始地址
+#define IN_EEPROM_END               (DATA_EEPROM_BANK2_END - IN_EEPROM_BASE_ADDRESS)    ///< EEPROM结束地址
 
-#define IN_EEPROM_WR_ENABLE              0x0F                                ///< EEPROM写操作使能
-#define IN_EEPROM_WR_DISABLE             0x00                                ///< EEPROM写操作禁止
+#define IN_EEPROM_WR_ENABLE         0x0F                                ///< EEPROM写操作使能
+#define IN_EEPROM_WR_DISABLE        0x00                                ///< EEPROM写操作禁止
 
-#define WRITE_EEPROM_ERR_MAX             0x03                                ///< 写EEPROM错误最大次数
+#define WRITE_EEPROM_ERR_MAX        0x03                                ///< 写EEPROM错误最大次数
 
 /**@brief       向内部EEPROM指定位置写入一字节数据
 * @param[in]    RWAddr : 写入地址

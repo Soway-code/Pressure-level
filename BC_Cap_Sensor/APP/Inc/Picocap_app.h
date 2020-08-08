@@ -93,7 +93,7 @@ struct rt_pcap_device_obj {
     PCap_DataConvert_Param      PCap_DataConvert;
     PCap_DataConvert_Out_Param  PCap_DataConvert_Out;
 };
-#endif
+#endif // USING_RT_THREAD_OS
 
 
 /**@brief       切换滤波水平函数
@@ -130,7 +130,7 @@ void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_Co
 */
 void DataFilterParam_Init(DataFilterParam *FilterParam, uint16_t Filterfactor_CountMax,
                             uint32_t InputRangeMax, uint32_t InputRangeMin);
-#endif
+#endif // __IN_MEMORY_APP_H
 
 #ifdef __IN_MEMORY_APP_H
 
@@ -160,7 +160,7 @@ void DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param);
 */
 uint8_t DataConvertParam_Init(PCap_DataConvert_Param *DataConvert_Param, uint8_t CompenEn,
                             uint8_t *Param, uint16_t Param_Size);
-#endif
+#endif // __IN_MEMORY_APP_H
 
 /**@brief       获取PCap原始采集值
 * @param[in]    reg_addr : 结果寄存器的地址;
@@ -198,4 +198,4 @@ void Sensor_PCap_DataConvert(PCap_DataConvert_Param *DataConvert_Param,
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __PICOCAP_APP_H

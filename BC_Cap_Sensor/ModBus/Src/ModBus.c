@@ -1,26 +1,28 @@
 /**@file        Modbus.c
-* @brief        Modbus RTU 通信协议
-* @details      读写参数报文处理、标定功能、采集数据交互
+* @brief        Modbus 通信协议
+* @details      标定功能、采集数据交互
 * @author       庄明群
-* @date         2020-07-20
-* @version      V2.0.0
+* @date         2020-08-05
+* @version      V2.1.0
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
 * <tr><th>Date        <th>Version  <th>Author  <th>Maintainer  <th>Description
-* <tr><td>2020/07/20  <td>2.0.0    <td>庄明群  <td>杨春林      <td>维护并更新的版本
+* <tr><td>2020/08/05  <td>2.1.0    <td>庄明群  <td>杨春林      <td>删除了自动上传线程, 
+* 使用 ModBus 处理线程处理消息帧和自动上传
 * </table>
 *
 **********************************************************************************
 */
 
-#include "ModBus_Conf.h"
+#include "ModBus.h"
+
 #if defined(USING_MODBUS_RTU)
 #include "ModBus_RTU.h"
 #elif defined(USING_MODBUS_ASCII)
 #include "ModBus_ASCII.h"
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
 
 
 static uint8_t ModBus_Receive_Buf[RECEIVE_SIZE];    ///< ModBus接收缓存(ModBus解析处理时,使用这个缓存)
@@ -35,6 +37,8 @@ static uint8_t ModBus_Send_Buf[SEND_SIZE];          ///< ModBus发送缓存
 */
 void ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam)
 {
+/* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
+#ifndef BOOT_PROGRAM
     uint8_t Read_Data;
     
     InMemory_Read_MultiBytes(DEVICE_ADDR, &Read_Data, 1);    //设备地址
@@ -56,6 +60,17 @@ void ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam)
     ModBusBaseParam->Freeze = Read_Data;
     
     ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_DISABLE;          //写内部存储器使能标志
+#else
+    if(InMemory_Read_OneByte(ADDR_DEVICEADDR) == 0)
+    {
+        InMemory_Write_OneByte(ADDR_DEVICEADDR, 0xFF);
+    }
+    ModBusBaseParam->Device_Addr    = InMemory_Read_OneByte(ADDR_DEVICEADDR);
+    ModBusBaseParam->ProgErase      = InMemory_Read_OneByte(ADDR_ERASEFLAG);
+    ModBusBaseParam->BaudRate       = USART_BAUDRATE_9600_CODE;
+    ModBusBaseParam->Parity         = USART_PARITY_NONE_CODE;
+#endif // BOOT_PROGRAM
+        
     ModBusBaseParam->ModBus_CallBack = NULL;                //ModBus回调函数
     
     ModBusBaseParam->ModBus_TX_RX.Receive_Buf = ModBus_Receive_Buf;         //ModBus接收数据缓存
@@ -107,7 +122,7 @@ uint8_t ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam,
     }
     return OP_FAILED;
 }
-#endif
+#endif // __IN_MEMORY_APP_H
 
 /**@brief       发送数据
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
@@ -122,14 +137,11 @@ uint8_t Send_Data(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg, uint1
 #ifdef  USART_USING_485
     //发送使能
     TX_ON;
-#endif
-/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
-#ifdef USING_RT_THREAD_OS
-    rt_sem_take(ModBusBaseParam->TX_Lock, RT_WAITING_FOREVER);    //获取信号量
-#else
+#endif // USART_USING_485
+
     while(Sensor_USART_Get_TX_Cplt_Flag() == 0);
     Sensor_USART_Clear_TX_Cplt_Flag();
-#endif
+
     //DMA发送
     return BSP_UART_Transmit_DMA(pMsg, len);        
 }
@@ -152,7 +164,7 @@ void ModbusHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     //获取一帧ModBus ASCII数据
     recv_status = MODBUS_ASCII_RecvData(ModBusBaseParam->ModBus_TX_RX.Receive_Buf, 
                                     &ModBusBaseParam->ModBus_TX_RX.Receive_Len);
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
     //校验错误，地址错误都不处理消息帧
     if( recv_status != ERR_NONE 
         || ((ModBusBaseParam->Device_Addr != ModBusBaseParam->ModBus_TX_RX.Receive_Buf[0]) 
@@ -223,7 +235,7 @@ void ModbusHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
                         ModBusBaseParam->ModBus_TX_RX.Send_Buf, 
                         ModBusBaseParam->ModBus_TX_RX.Send_Len,
                         CHECK_ADDRESS);
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
     if(ModBusBaseParam->ModBus_CallBack != NULL)
     {        
         ModBusBaseParam->ModBus_CallBack(ModBusBaseParam);
@@ -368,34 +380,12 @@ __weak void ModbusAutoUpload(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg
     UNUSED(arg);
 }
 
-/**@brief       传感器事件处理,自动上传周期不为0时,周期性地调用ModbusAutoUpload
-* @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
-* @param[in]    arg : 用户自定义的参数,例如设备参数
-* @return       函数执行结果
-* - None
-*/
-void SensorEvent(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
-{
-    static uint32_t Old_Tick = 0;
-    //如果使能自动上传且自动上传定时时间到
-    if((0 != ModBusBaseParam->AutoUpload) 
-        && ((ModBusBaseParam->AutoUpload * AUTOUPLOAD_CYCLE) <= (HAL_GetTick() - Old_Tick)))
-    {
-        //Modbus帧自动上传
-        ModbusAutoUpload(ModBusBaseParam, arg);
-        Old_Tick = HAL_GetTick();
-    }
-}
-
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
 #include "rtthread.h"
 
 #define MODBUS_HANDLE_THREAD_STACK          512
 #define MODBUS_HANDLE_THREAD_PRIORITY       RT_THREAD_PRIORITY_MAX - 4
-
-#define MODBUS_AUTOUPLOAD_THREAD_STACK      512
-#define MODBUS_AUTOUPLOAD_THREAD_PRIORITY   RT_THREAD_PRIORITY_MAX - 3
 
 static ModBusBaseParam_TypeDef     ModBusBase_Param;     //ModBus处理的基本参数结构
 static ModBus_Device_Param         ModBus_Device;       //ModBus管理设备的参数结构体
@@ -410,34 +400,20 @@ void modbus_handle_thread_entry(void *parameter)
 {                
     while(1)
     {
-        //ModBus处理
-        if(Sensor_USART_Get_RX_Updata_Flag())
-        {
-            ModbusHandle(&ModBusBase_Param, &ModBus_Device);
-            Sensor_USART_Clear_RX_Updata_Flag();
+        // 判断串口是否有数据接收并输入等待时间(单位为 ms)，将输入的等待时间转换成系统时钟节拍
+        if(Sensor_USART_Get_RX_Updata_Flag(
+            rt_tick_from_millisecond(
+            (ModBusBase_Param.AutoUpload ? ModBusBase_Param.AutoUpload : 1) // 判断自动上传周期是否为0，不为0则使用
+            * 1000)))                                                       // 自动上传周期 * 1000 ms ，否则使用 1000 ms
+        {           
+            // Modbus 消息帧处理
+            ModbusHandle(&ModBusBase_Param, &ModBus_Device);            
+            Sensor_USART_Clear_RX_Updata_Flag();                        
         } 
-    }
-}
-
-/**@brief       ModBus自动上传处理线程,用于处理ModBus自动上传事件
-* @param[in]    parameter : 线程的参数,这里不使用
-* @return       函数执行结果
-* - None
-*/
-void modbus_autoupload_thread_entry(void *parameter)
-{
-    while(1)
-    {
-        //如果自动上传值非0,则使能自动上传
-        if(ModBusBase_Param.AutoUpload != 0)
+        else if(ModBusBase_Param.AutoUpload != 0)
         {
-            //Modbus帧自动上传
-            ModbusAutoUpload(&ModBusBase_Param, &ModBus_Device);        
-            rt_thread_mdelay(ModBusBase_Param.AutoUpload * AUTOUPLOAD_CYCLE);
-        }
-        else
-        {
-            rt_thread_mdelay(1000);
+            // ModBus 帧自动上传
+            ModbusAutoUpload(&ModBusBase_Param, &ModBus_Device); 
         }
     }
 }
@@ -450,26 +426,40 @@ void modbus_autoupload_thread_entry(void *parameter)
 */
 static int modbus_init(void)
 {
-    rt_device_t                 adc_device;
-    rt_device_t                 pcap_device;
-    struct rt_adc_device_obj    *adc_device_obj;
-    struct rt_pcap_device_obj   *pcap_device_obj;
-    rt_thread_t                 modbus_handle_thread;
-    rt_thread_t                 modbus_autoupload_thread;
+    rt_device_t                 adc_device;                 // ADC设备
+    rt_device_t                 pcap_device;                // Pcap设备
+    struct rt_adc_device_obj    *adc_device_obj;            // ADC设备对象(包含设备处理参数和输出值)
+    struct rt_pcap_device_obj   *pcap_device_obj;           // Pcap设备对象(包含设备处理参数和输出值)
+    rt_thread_t                 modbus_handle_thread;       // ModBus 处理线程句柄
     
-    adc_device = rt_device_find(ADC_DEVICE_NAME);
+/************************************** 查找Pcap设备并打开(启动) ***************************************/
+    // 查找ADC设备
+    adc_device = rt_device_find(ADC_DEVICE_NAME);           
     if(adc_device != RT_NULL)
-    {
-        adc_device_obj = (struct rt_adc_device_obj *)adc_device->user_data;
-        rt_device_open(adc_device, RT_DEVICE_OFLAG_RDONLY);
+    {   
+        // 获取ADC设备对象信息
+        adc_device_obj = (struct rt_adc_device_obj *)adc_device->user_data; 
+        // 打开(启动)ADC设备
+        rt_device_open(adc_device, RT_DEVICE_OFLAG_RDONLY); 
     }
-    pcap_device = rt_device_find(PCAP_DEVICE_NAME);
+/*******************************************************************************************************/
+    
+    
+/************************************** 查找Pcap设备并打开(启动) ***************************************/
+    // 查找Pcap设备
+    pcap_device = rt_device_find(PCAP_DEVICE_NAME);         
     if(pcap_device != RT_NULL)
     {
-        pcap_device_obj = (struct rt_pcap_device_obj *)pcap_device->user_data;
-        rt_device_open(pcap_device, RT_DEVICE_OFLAG_RDWR);
-    }        
+        // 获取Pcap设备对象信息
+        pcap_device_obj = (struct rt_pcap_device_obj *)pcap_device->user_data;  
+        // 打开(启动)Pcap设备
+        rt_device_open(pcap_device, RT_DEVICE_OFLAG_RDWR);  
+    }  
+/*******************************************************************************************************/
+      
     
+/******************************************* 设备参数初始化 ********************************************/
+    /* 为 ModBus 添加 ADC 和 Pcap 设备对象 */
     if(adc_device != RT_NULL)
     {
         ModBus_Device.ADC_TemperParam         = &adc_device_obj->ADC_TemperParam;
@@ -481,12 +471,17 @@ static int modbus_init(void)
         ModBus_Device.PCap_DataConvert        = &pcap_device_obj->PCap_DataConvert; 
         ModBus_Device.PCap_DataConvert_Out    = &pcap_device_obj->PCap_DataConvert_Out;
     }
+/*******************************************************************************************************/
     
-    ModBus_Init(&ModBusBase_Param);                      //ModBus初始化(包括串口初始化)    
     
-    ModBusBase_Param.TX_Lock
-        = (rt_sem_t)rt_object_find(USART_TX_LOCK_NAME, RT_Object_Class_Semaphore);
+/******************************************** ModBus初始化 *********************************************/
+    // ModBus初始化(包括串口初始化)    
+    ModBus_Init(&ModBusBase_Param);                      
+    // 查找串口发送锁
+    ModBusBase_Param.TX_Lock                            
+        = (rt_sem_t)rt_object_find(USART_TX_LOCK_NAME, RT_Object_Class_Semaphore);    
     
+    /* 创建 ModBus 处理线程 */
     modbus_handle_thread = rt_thread_create("mb_hand",
                                             modbus_handle_thread_entry,
                                             RT_NULL,
@@ -494,20 +489,13 @@ static int modbus_init(void)
                                             MODBUS_HANDLE_THREAD_PRIORITY,
                                             20);
     RT_ASSERT(modbus_handle_thread != RT_NULL);
-    rt_thread_startup(modbus_handle_thread);
-    
-    modbus_autoupload_thread = rt_thread_create("mb_up",
-                                            modbus_autoupload_thread_entry,
-                                            RT_NULL,
-                                            MODBUS_AUTOUPLOAD_THREAD_STACK,
-                                            MODBUS_AUTOUPLOAD_THREAD_PRIORITY,
-                                            20);
-    RT_ASSERT(modbus_autoupload_thread != RT_NULL);
-    rt_thread_startup(modbus_autoupload_thread);
+    // 启动 ModBus 处理线程
+    rt_thread_startup(modbus_handle_thread);        
+/*******************************************************************************************************/
     
     return RT_EOK;
 }
 INIT_COMPONENT_EXPORT(modbus_init);
 
-#endif
+#endif // USING_RT_THREAD_OS
 

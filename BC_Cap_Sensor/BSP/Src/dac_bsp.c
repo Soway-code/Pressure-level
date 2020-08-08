@@ -46,16 +46,16 @@ void BSP_DAC_Init(void)
   {
     Error_Handler();
   }
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE) 
   
 #if defined(DAC_CHANNEL_2_ENABLE)
   if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
-#endif
+#endif // defined(DAC_CHANNEL_2_ENABLE)
   
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE) || defined(DAC_CHANNEL_2_ENABLE)
 }
 
 /**@brief       DAC时钟、底层管脚初始化(由HAL_DAC_Init回调调用)
@@ -80,18 +80,19 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* dacHandle)
 #if defined(DAC_CHANNEL_1_ENABLE)
     GPIO_InitStruct.Pin |= DACx_CHANNEL_PIN;
     HAL_GPIO_Init(DACx_CHANNEL1_GPIO_PORT, &GPIO_InitStruct);
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE)
+    
 #if defined(DAC_CHANNEL_2_ENABLE)
     GPIO_InitStruct.Pin |= DACx_CHANNEL2_PIN;
     HAL_GPIO_Init(DACx_CHANNEL2_GPIO_PORT, &GPIO_InitStruct);
-#endif
+#endif // defined(DAC_CHANNEL_2_ENABLE)
     
 
     /* USER CODE BEGIN DAC_MspInit 1 */
 
     /* USER CODE END DAC_MspInit 1 */
   
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE) || defined(DAC_CHANNEL_2_ENABLE)
 }
 
 /**@brief       DAC时钟、底层管脚反初始化(由HAL_DAC_DeInit回调调用)
@@ -112,17 +113,18 @@ void HAL_DAC_MspDeInit(DAC_HandleTypeDef* dacHandle)
 
 #if defined(DAC_CHANNEL_1_ENABLE)
     HAL_GPIO_DeInit(DACx_CHANNEL1_GPIO_PORT, DACx_CHANNEL1_PIN);
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE)
+    
 #if defined(DAC_CHANNEL_2_ENABLE)
     HAL_GPIO_DeInit(DACx_CHANNEL2_GPIO_PORT, DACx_CHANNEL2_PIN);
-#endif
+#endif // defined(DAC_CHANNEL_2_ENABLE)
 
 
     /* USER CODE BEGIN DAC_MspDeInit 1 */
 
     /* USER CODE END DAC_MspDeInit 1 */
   
-#endif
+#endif // defined(DAC_CHANNEL_1_ENABLE) || defined(DAC_CHANNEL_2_ENABLE)
 } 
 
 /**@brief       指定DAC通道写入DA值
@@ -259,7 +261,7 @@ static int dac_device_init(void)
     
     dac_device_obj.user_data = &dac_device_obj;
     
-    rt_device_register(&dac_device_obj, DAC_DEVICE_NAME, 
+    rt_device_register(&dac_device_obj, DAC_DEVICE_NAME,    // 注册DAC设备
                         RT_DEVICE_FLAG_WRONLY
                         | RT_DEVICE_FLAG_STANDALONE);
     
@@ -267,5 +269,5 @@ static int dac_device_init(void)
 }
 INIT_DEVICE_EXPORT(dac_device_init);
 
-#endif
+#endif // USING_RT_THREAD_OS
 

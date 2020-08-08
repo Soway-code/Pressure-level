@@ -37,31 +37,40 @@
 typedef enum {
 #ifdef ADC_CHANNEL_0_ENABLE
     AD_CHANNEL_0,
-#endif
+#endif // ADC_CHANNEL_0_ENABLE
+    
 #ifdef ADC_CHANNEL_1_ENABLE
     AD_CHANNEL_1,
-#endif
+#endif // ADC_CHANNEL_1_ENABLE
+    
 #ifdef ADC_CHANNEL_2_ENABLE
     AD_CHANNEL_2,
-#endif
+#endif // ADC_CHANNEL_2_ENABLE
+    
 #ifdef ADC_CHANNEL_3_ENABLE
     AD_CHANNEL_3,
-#endif
+#endif // ADC_CHANNEL_3_ENABLE
+    
 #ifdef ADC_CHANNEL_6_ENABLE
     AD_CHANNEL_6,
-#endif
+#endif // ADC_CHANNEL_6_ENABLE
+    
 #ifdef ADC_CHANNEL_7_ENABLE
     AD_CHANNEL_7,
-#endif
+#endif // ADC_CHANNEL_7_ENABLE
+
 #ifdef ADC_CHANNEL_8_ENABLE
     AD_CHANNEL_8,
-#endif
+#endif // ADC_CHANNEL_8_ENABLE
+
 #ifdef ADC_CHANNEL_9_ENABLE
     AD_CHANNEL_9,
-#endif
+#endif // ADC_CHANNEL_9_ENABLE
+
 #ifdef ADC_CHANNEL_TEMPSENSOR_ENABLE
     AD_CHANNEL_TEMPSENSOR,
-#endif
+#endif // ADC_CHANNEL_TEMPSENSOR_ENABLE
+
     AD_CHANNEL_TOTAL
 }AD_CHANNEL_NUM;
 
@@ -78,7 +87,7 @@ typedef enum {
 
 #if defined(STM32L0)
 #define ADCx_DMA_REQUEST                DMA_REQUEST_0
-#endif
+#endif // defined(STM32L0)
 
 #define ADCx_DMA_IRQHandler             DMA1_Channel1_IRQHandler    ///< ADC DMA中断服务函数
 #define ADCx_IRQHandler                 ADC1_COMP_IRQHandler        ///< ADC中断服务函数
@@ -112,4 +121,4 @@ void BSP_ADC_DMA_Disable_IT(void);
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ adc_H */
+#endif // __ADC_BSP_H

@@ -1,5 +1,5 @@
-/**@file        modbus_ascii.h
-* @details      modbus_ascii.c的头文件,声明了ModBus ASCII数据处理的API函数
+/**@file        ModBus_ASCII.h
+* @details      ModBus_ASCII.c的头文件,声明了 ModBus ASCII 报文处理的API函数
 * @author       庄明群
 * @date         2020-07-20
 * @version      V2.0.0
@@ -90,7 +90,7 @@ uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen);
 
 /**@brief       获取一包 ModBus ASCII 数据
 * @param[in]    cyRecvBuff : 接收缓存指针
-* @param[in]    cyLen : 接收的数据长度
+* @param[in]    cyLen : 接收的数据长度(无错误则不包括LRC)
 * @return       函数执行结果
 * - ERR_INVALID_DATA : 接收缓存指针无效
 * - ERR_ASCII : 不全是ASCII码
@@ -111,5 +111,5 @@ uint8_t MODBUS_ASCII_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t 
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // _MODBUS_ASCII_H
 

@@ -35,6 +35,7 @@ uint8_t InFlash_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
     uint16_t i;
     uint8_t *buf = (uint8_t *)Flash_Buf;
     HAL_StatusTypeDef Halstatus;
+    uint8_t Erase_Flag = 0;
 
     if(IN_FLASH_END < RWAddr)
     {
@@ -42,22 +43,32 @@ uint8_t InFlash_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
     }
     WrAddr = (RWAddr / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
     InFlash_Read_MultiBytes(WrAddr, buf, FLASH_PAGE_SIZE);
-    buf[RWAddr % FLASH_PAGE_SIZE] = WrData;
-    
-    if(buf[RWAddr % FLASH_PAGE_SIZE] != 0xFF)
+        
+    if(Flash_Buf[RWAddr / 8] != 0xFFFFFFFFFFFFFFFF)
     {
         Halstatus = (HAL_StatusTypeDef)InFlash_Erase_Page(RWAddr, 1);
         if(HAL_OK != Halstatus)
             return OP_FAILED;
+        Erase_Flag = 1;
     }
+    buf[RWAddr % FLASH_PAGE_SIZE] = WrData;
+        
     //__disable_irq();    
     HAL_FLASH_Unlock();
-    for(i = 0; i < FLASH_PAGE_SIZE; i += 8)
+    if(Erase_Flag)
+    {
+        for(i = 0; i < FLASH_PAGE_SIZE; i += 8)
+        {
+            Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, 
+                                            (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint64_t)Flash_Buf[i / 8]);
+            if(HAL_OK != Halstatus)
+                break;
+        }
+    }
+    else
     {
         Halstatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, 
-                                        (WrAddr + i) + IN_FLASH_BASE_ADDRESS, (uint64_t)Flash_Buf[i / 8]);
-        if(HAL_OK != Halstatus)
-            break;
+                                        (RWAddr / 8) * 8, (uint64_t)Flash_Buf[(RWAddr / 8)]);
     }
     HAL_FLASH_Lock();
     //__enable_irq();
@@ -191,7 +202,7 @@ static uint32_t GetPage(uint32_t Addr)
 {
   return (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;;
 }
-#endif
+#endif // defined(STM32G0)
 /**@brief       向内部Flash指定位置擦除页
 * @param[in]    RWAddr : 擦除起始地址
 * @param[in]    PageNb : 擦除页数目
@@ -214,7 +225,7 @@ uint8_t InFlash_Erase_Page(uint16_t RWAddr, uint8_t PageNb)
     EraseInitStruct.Page        = GetPage(EepAddress);
 #else
     EraseInitStruct.PageAddress = EepAddress;
-#endif
+#endif // defined(STM32G0)
     EraseInitStruct.NbPages = PageNb;
     HAL_FLASH_Unlock();    
     sta = HAL_FLASHEx_Erase(&EraseInitStruct, &PageError);

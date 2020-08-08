@@ -38,18 +38,24 @@ int main(void)
     ADC_TemperParam_TypeDef     ADC_TemperParam;        //ADC温度处理需要的参数结构体
     ADC_TemperOut_TypeDef       ADC_TemperOut;          //ADC温度处理输出数据的结构体
     ModBusBaseParam_TypeDef     ModBusBaseParam;        //ModBus处理的基本参数结构
-    ModBus_Device_Param         ModBus_Device;          //ModBus管理设备的参数结构体
-    uint32_t                    PCap_Tick_Old  = HAL_GetTick();    
+    ModBus_Device_Param         ModBus_Device;          //ModBus管理设备的结构体
+    uint32_t                    PCap_Tick_Start  = HAL_GetTick();   //计算超时的起始值，用于Pcap定时采集
+    __IO uint32_t               Auto_Up_Tick_Start = HAL_GetTick(); //计算超时的起始值，用于ModBus定时自动上传
     
+    /* 为 ModBus 添加 ADC 和 Pcap 设备对象 */
     ModBus_Device.ADC_TemperParam         = &ADC_TemperParam;
     ModBus_Device.ADC_TemperOut           = &ADC_TemperOut;
     ModBus_Device.DataFilter              = &FilterParam;
     ModBus_Device.PCap_DataConvert        = &DataConvert_Param; 
     ModBus_Device.PCap_DataConvert_Out    = &DataConvert_Out;
     
+/**************************************** 初始化HAL库和系统时钟 ****************************************/
     HAL_Init();                                         //HAL库初始化
     SystemClock_Config();                               //系统时钟配置
+/*******************************************************************************************************/
 
+
+/******************************************* 初始化外设模块 ********************************************/
     Check_Device_Param();                               //检查内部设备数据    
     DataFilterParam_Init(&FilterParam, DATA_BUF_MAX);   //滤波参数初始化
     DataConvertParam_Init(&DataConvert_Param);          //PCap数据转换参数初始化
@@ -59,19 +65,41 @@ int main(void)
     BSP_DAC_Init();                                     //DAC初始化
     BSP_IWDG_Init();                                    //独立看门狗初始化
     ModBus_Init(&ModBusBaseParam);                      //ModBus初始化(包括串口初始化)
+/*******************************************************************************************************/
     
     while (1)
     {
-        //看门狗喂狗
+/********************************************* 看门狗喂狗 **********************************************/
         BSP_IWDG_Refresh();
-        //ModBus处理
-        if(Sensor_USART_Get_RX_Updata_Flag())       //串口数据更新了
+/*******************************************************************************************************/
+        
+        
+/********************************************* ModBus处理 **********************************************/
+        //串口数据更新了
+        if(Sensor_USART_Get_RX_Updata_Flag())       
         {
+            //ModBus消息帧处理
             ModbusHandle(&ModBusBaseParam, &ModBus_Device);
-            Sensor_USART_Clear_RX_Updata_Flag();    //清除串口数据更新标志
-        }        
+            //清除串口数据更新标志
+            Sensor_USART_Clear_RX_Updata_Flag();    
+            //处理了 ModBus 消息后，自动上传定时从当前时间开始重新计时
+            Auto_Up_Tick_Start = HAL_GetTick();       
+        }                
+        //如果自动上传时间不为 0 且自动上传定时时间到
+        else if((ModBusBaseParam.AutoUpload != 0)   
+            && ((ModBusBaseParam.AutoUpload * AUTOUPLOAD_CYCLE) <= (HAL_GetTick() - Auto_Up_Tick_Start)))
+        {
+            //Modbus帧自动上传
+            ModbusAutoUpload(&ModBusBaseParam, &ModBus_Device);
+            //记录当前时间为下一次自动上传重新计时
+            Auto_Up_Tick_Start = HAL_GetTick();       
+        }
+/*******************************************************************************************************/
+        
+        
+/*********************************** Pcap采集、滤波、数据转换、输出 ************************************/
         //定时时间到采集电容值
-        if(HAL_GetTick() - PCap_Tick_Old > PCAP_COLLECT_CYCLE)
+        if(HAL_GetTick() - PCap_Tick_Start > PCAP_COLLECT_CYCLE)    
         {
             //读取PCap数据并判断返回状态,成功状态则进行滤波和数据转换
             if(Sensor_PCap_GetResult(RESULT_REG1_ADDR, 
@@ -80,25 +108,36 @@ int main(void)
             {
                 //数据滤波并判断是否成功
                 if(Sensor_DataFilter(&FilterParam, 
-                            ModBus_Device.PCap_DataConvert_Out->PCap_ResultValue, &FilterResult) == OP_SUCCESS)
+                                    ModBus_Device.PCap_DataConvert_Out->PCap_ResultValue, 
+                                    &FilterResult) == OP_SUCCESS)
                 {
                     //数值转换
                     Sensor_PCap_DataConvert(&DataConvert_Param, 
                                             FilterResult, 
                                             &DataConvert_Out);
-                    //DA转换,使用通道2
+                    
+/*********************************************** DAC处理 ***********************************************/
+                    //如果使能了DA标定则输出DA原始值，否则输出滤波后的DA值
                     if(DataConvert_Param.CapDA_ClibEn == DAOUTCLIB_ENABLE)
-                    {
+                    { 
+                        //DA转换,使用通道2
                         BSP_DAC_Convert(DataConvert_Out.PCapDA_ResultValue, DA_CHANNEL_2);
                     }
                     else
                     {
+                        //DA转换,使用通道2
                         BSP_DAC_Convert(DataConvert_Out.PCapDA_OutValue, DA_CHANNEL_2);
                     }
+/*******************************************************************************************************/
                 }
             }
-            PCap_Tick_Old = HAL_GetTick();
+            //记录当前时间为下一次采集电容值重新计时
+            PCap_Tick_Start = HAL_GetTick();      
         }
+/*******************************************************************************************************/
+        
+        
+/*********************************************** ADC处理 ***********************************************/
         //判断ADC是否被更新
         if(Sensor_ADC_Get_Updata_Flag() == UPDATA_OK)
         {
@@ -106,9 +145,8 @@ int main(void)
             ADC_TemperOut.TemperInAir = Sensor_ADC_Get_TemperData();
             //清除ADC更新标志,并打开ADC转换
             Sensor_ADC_Clean_Updata_Flag();
-        }
-        //传感器事件处理,一般为自动上传
-        SensorEvent(&ModBusBaseParam, &ModBus_Device);
+        }          
+/*******************************************************************************************************/        
     }
 }
 
@@ -124,12 +162,9 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14
-                              |RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;

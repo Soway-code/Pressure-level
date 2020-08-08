@@ -1,5 +1,5 @@
-/**@file        modbus_ascii.h
-* @details      modbus_ascii.c的头文件,声明了ModBus ASCII数据处理的API函数
+/**@file        ModBus_RTU.h
+* @details      ModBus_RTU.c的头文件,声明了ModBus RTU 报文处理的API函数
 * @author       庄明群
 * @date         2020-07-20
 * @version      V2.0.0
@@ -45,7 +45,7 @@ void MODBUS_RTU_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg
 
 /**@brief       获取 Modbus RTU 消息包
 * @param[in]    cyRecvBuff : 消息包缓存; 
-* @param[in]    pCyLen : 输出的消息包长度;
+* @param[in]    pCyLen : 输出的消息包长度(无错误则不包括CRC);
 * @return       函数执行结果
 * - ERR_INVALID_DATA : 无效数据
 * - ERR_CRC : CRC校验错误
@@ -56,5 +56,5 @@ uint8_t MODBUS_RTU_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen);
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // _MODBUS_ASCII_H
 

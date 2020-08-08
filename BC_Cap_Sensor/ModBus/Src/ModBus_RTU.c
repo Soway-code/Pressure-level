@@ -1,6 +1,6 @@
 /**@file        ModBus_RTU.c
 * @brief        ModBus RTU 通信协议
-* @details      读写参数报文处理、标定功能、采集数据交互
+* @details      RTU 报文处理
 * @author       庄明群
 * @date         2020-07-20
 * @version      V2.0.0
@@ -150,7 +150,7 @@ void MODBUS_RTU_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg
 
 /**@brief       获取 Modbus RTU 消息包
 * @param[in]    cyRecvBuff : 消息包缓存; 
-* @param[in]    pCyLen : 输出的消息包长度;
+* @param[in]    pCyLen : 输出的消息包长度(无错误则不包括CRC);
 * @return       函数执行结果
 * - ERR_INVALID_DATA : 无效数据
 * - ERR_CRC : CRC校验错误
@@ -159,22 +159,23 @@ void MODBUS_RTU_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t *pMsg
 uint8_t MODBUS_RTU_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
 {
     uint16_t crc;
-    uint16_t recv_len;
         
     //获取一帧ModBus RTU数据
-    recv_len = Sensor_USART_GetReceData(cyRecvBuff);   
-    if((recv_len - 2) < 0)         //接收的数据长度至少 >= 2
+    *pCyLen = Sensor_USART_GetReceData(cyRecvBuff);   
+    if(*pCyLen < 2)         //接收的数据长度至少 >= 2
     {
         return ERR_INVALID_DATA;
     }
     //获取CRC值
-    crc = cyRecvBuff[recv_len - 1] << 8;
-    crc |= cyRecvBuff[recv_len - 2];
-    //校验错误，地址错误都不处理消息帧
-    if( crc != MDB_Get_CRC16(cyRecvBuff, recv_len - 2) )
+    crc = cyRecvBuff[*pCyLen - 1] << 8;
+    crc |= cyRecvBuff[*pCyLen - 2];
+    //校验是否错误
+    if( crc != MDB_Get_CRC16(cyRecvBuff, *pCyLen - 2) )
         return ERR_CRC;
+    
+    *pCyLen -= 2;
     
     return ERR_NONE;
 }
 
-#endif
+#endif // defined(USING_MODBUS_RTU)

@@ -1,6 +1,6 @@
-/**@file        modbus_ascii.c
-* @brief        ModBus ASCII数据处理
-* @details      ModBus ASCII数据与ModBus RTU数据互转
+/**@file        ModBus_ASCII.c
+* @brief        ModBus ASCII 报文处理
+* @details      ModBus ASCII 报文与 ModBus RTU 报文互转
 * @author       庄明群
 * @date         2020-07-20
 * @version      V2.0.0
@@ -209,7 +209,7 @@ uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen)
 
 /**@brief       获取一包 ModBus ASCII 数据
 * @param[in]    cyRecvBuff : 接收缓存指针
-* @param[in]    cyLen : 接收的数据长度
+* @param[in]    cyLen : 接收的数据长度(无错误则不包括LRC)
 * @return       函数执行结果
 * - ERR_INVALID_DATA : 接收缓存指针无效
 * - ERR_ASCII : 不全是ASCII码
@@ -219,28 +219,27 @@ uint8_t MODBUS_ASCII_CheckAscii(uint8_t *pCyAsciiBuf, uint16_t cyLen)
 uint8_t MODBUS_ASCII_RecvData(uint8_t* cyRecvBuff, uint16_t *pCyLen)
 {
     uint8_t cyLrc;
-    uint16_t recv_len;
 	
     if (((uint8_t*)0) == cyRecvBuff)
     {
         return ERR_INVALID_DATA;
     }
-    recv_len = Sensor_USART_GetReceData(cyRecvBuff);
+    *pCyLen = Sensor_USART_GetReceData(cyRecvBuff);
     
-    if((recv_len - 2) <= 0
+    if(*pCyLen <= 2
         || cyRecvBuff[0] != ASCII_HEAD_DATA
-        || cyRecvBuff[recv_len - 2] != ASCII_TAIL_FIRST_DATA)
+        || cyRecvBuff[*pCyLen - 2] != ASCII_TAIL_FIRST_DATA)
     {
         return ERR_INVALID_DATA;
     }
     
-    if (ERR_ASCII == MODBUS_ASCII_CheckAscii(&cyRecvBuff[1], recv_len - 3) )
+    if (ERR_ASCII == MODBUS_ASCII_CheckAscii(&cyRecvBuff[1], *pCyLen - 3) )
     {
     	return ERR_ASCII;        
     }
     
     *pCyLen = MODBUS_ASCII_AsciiPacketToRtuPacket(&cyRecvBuff[1], 
-            recv_len - 3, cyRecvBuff);
+            *pCyLen - 3, cyRecvBuff);
     
     cyLrc = MODBUS_GetLrc(cyRecvBuff, *pCyLen - 1);
     if (cyLrc != cyRecvBuff[*pCyLen - 1])
@@ -294,4 +293,4 @@ uint8_t MODBUS_ASCII_SendData(ModBusBaseParam_TypeDef *ModBusBaseParam, uint8_t 
     
     return Send_Data(ModBusBaseParam, Send_Buf, cyAsciiLen);
 }
-#endif
+#endif // defined(USING_MODBUS_ASCII)

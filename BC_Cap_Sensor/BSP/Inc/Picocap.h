@@ -890,11 +890,11 @@ PG2端口输出 */
 
 #ifndef OP_SUCCESS
 #define OP_SUCCESS
-#endif
+#endif // OP_SUCCESS
 
 #ifndef OP_FAILED
 #define OP_FAILED
-#endif
+#endif // OP_FAILED
 
 /**@brief       PCap芯片初始化
 * @return       函数执行结果
@@ -958,14 +958,8 @@ uint32_t PCap_Res_Sta(void);
 */
 uint32_t PCap_Res_Data(uint8_t reg_addr);
 
-/**@brief       读取PCap芯片温度数据
-* @return       函数执行结果
-* - PCap温度数据
-*/
-uint32_t PCap_Res_Temperature(void);
-
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __PICOCAP_H
 

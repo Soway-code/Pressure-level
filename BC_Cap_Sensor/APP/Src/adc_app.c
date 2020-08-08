@@ -103,7 +103,7 @@ uint8_t Sensor_ADC_TemperParam_Init(ADC_TemperParam_TypeDef *ADC_TemperParam, ui
     }
     return OP_FAILED;
 }
-#endif
+#endif  //__IN_MEMORY_APP_H
 
 /**@brief       初始化ADC，求出stm32芯片内部温度传感器的温度变化斜率，启动ADC的DMA传输
 * @return       函数执行结果
@@ -171,7 +171,7 @@ float Sensor_ADC_Get_TemperData(void)
     Result = Result * (int32_t)(130 - 30);
     Result = Result / (int32_t)(*VREF130ADDR - *VREF30ADDR);
     Result = Result + 30;
-#endif
+#endif // defined(STM32F0) or defined(STM32L0)
     
     return Result;
 }
@@ -362,12 +362,11 @@ static int adc_device_init(void)
     
     adc_device_obj.dev.user_data = &adc_device_obj;
     
-    Sensor_ADC_TemperParam_Init(&adc_device_obj.ADC_TemperParam);
-    
-    rt_device_register(&adc_device_obj.dev, ADC_DEVICE_NAME, 
+    Sensor_ADC_TemperParam_Init(&adc_device_obj.ADC_TemperParam);   // ADC温度处理参数初始化    
+    rt_device_register(&adc_device_obj.dev, ADC_DEVICE_NAME,        // 注册ADC设备
                         RT_DEVICE_FLAG_RDONLY
                         | RT_DEVICE_FLAG_STANDALONE);
-    
+    /* 创建 ADC 处理线程 */
     adc_thread = rt_thread_create("adc",
                                     adc_thread_entry,
                                     RT_NULL,
@@ -375,12 +374,13 @@ static int adc_device_init(void)
                                     ADC_THREAD_PRIORITY,
                                     20);
     RT_ASSERT(adc_thread != RT_NULL);
+    // 启动 ADC 处理线程
     rt_thread_startup(adc_thread);
     
     return RT_EOK;
 }
 INIT_DEVICE_EXPORT(adc_device_init);
 
-#endif
+#endif // USING_RT_THREAD_OS
 
 

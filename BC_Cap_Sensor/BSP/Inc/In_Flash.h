@@ -26,18 +26,18 @@
 
 /* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
 #ifdef BOOT_PROGRAM
-#define IN_FLASH_BASE_ADDRESS           0x0801E000                          ///< 操作Flash基地址
+#define IN_FLASH_BASE_ADDRESS   ((FLASH_BANK1_END + 1) - (4 * FLASH_PAGE_SIZE)) ///< 操作Flash基地址
 #else
-#define IN_FLASH_BASE_ADDRESS           0x0801E800                          ///< 操作Flash基地址
-#endif
+#define IN_FLASH_BASE_ADDRESS   ((FLASH_BANK1_END + 1) - (3 * FLASH_PAGE_SIZE)) ///< 操作Flash基地址
+#endif // BOOT_PROGRAM
 
 #define IN_FLASH_START                  0x0000                              ///< Flash起始地址
 /* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
 #ifdef BOOT_PROGRAM
-#define IN_FLASH_END                    0x07FF                              ///< Flash结束地址
+#define IN_FLASH_END            (FLASH_PAGE_SIZE - 1)                       ///< Flash结束地址
 #else
-#define IN_FLASH_END                    0x17FF                              ///< Flash结束地址
-#endif
+#define IN_FLASH_END            (3 * FLASH_PAGE_SIZE - 1)                   ///< Flash结束地址
+#endif // BOOT_PROGRAM
 
 #define IN_FLASH_WR_ENABLE              0x0F                                ///< Flash写操作使能
 #define IN_FLASH_WR_DISABLE             0x00                                ///< Flash写操作禁止
@@ -96,5 +96,5 @@ uint8_t InFlash_Erase_Page(uint16_t RWAddr, uint8_t PageNb);
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __IN_FLASH_H
 

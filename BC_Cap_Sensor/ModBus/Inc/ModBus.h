@@ -1,5 +1,5 @@
 /**@file        Modbus.h
-* @details      Modbus.c的头文件,声明了Modbus RTU 通信的API函数
+* @details      Modbus.c的头文件,声明了 Modbus 通信的API函数
 * @author       庄明群
 * @date         2020-07-20
 * @version      V2.0.0
@@ -25,10 +25,12 @@
 
 
 #ifndef RECEIVE_SIZE
-#define RECEIVE_SIZE                    32              ///< 接收缓存的大小
-#endif
+#define RECEIVE_SIZE                    64              ///< 接收缓存的大小
+#endif // RECEIVE_SIZE
 
-#define AUTOUPLOAD_CYCLE                1000            ///< 自动上传周期,单位 ms
+#ifndef SEND_SIZE
+#define SEND_SIZE                       64              ///< 发送缓存大小
+#endif // SEND_SIZE
 
 #define BROADCASTADDR                   0x00                                  ///< 广播地址
 
@@ -105,6 +107,13 @@
 #define ERR_LRC             2               //LRC校验错误
 #define ERR_CRC             3               //CRC校验错误
 #define ERR_INVALID_DATA    4               //接收缓存数据无效
+
+/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
+#ifdef USING_RT_THREAD_OS
+
+#define MODBUS_LOCK_NAME    "modbus"
+
+#endif // USING_RT_THREAD_OS
     
     
 /** ModBus发送/接收处理结构体 */
@@ -127,14 +136,14 @@ typedef struct _ModBusBaseParam_TypeDef {
     uint8_t InRomWrEn;                  ///< 内部存储器写使能
     ModBus_TX_RX_TypeDef ModBus_TX_RX;  ///< ModBus发送/接收处理结构体
 #ifdef USING_RT_THREAD_OS
-    rt_sem_t TX_Lock;                   ///< 发送锁
-#endif
+    rt_sem_t TX_Lock;                   ///< 串口发送锁
+#endif // USING_RT_THREAD_OS
     
 /* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
 #ifdef BOOT_PROGRAM
     uint8_t ProgErase;                  ///< 程序擦除标志
     int8_t UpgradeWaitTime;             ///< 升级等待时间
-#endif
+#endif // BOOT_PROGRAM
     /** ModBus回调函数 */
     int     (*ModBus_CallBack) (struct _ModBusBaseParam_TypeDef *arg);
 }ModBusBaseParam_TypeDef;
@@ -163,7 +172,7 @@ void ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam);
 */
 uint8_t ModBus_Init(ModBusBaseParam_TypeDef *ModBusBaseParam,
                 uint8_t *Param, uint16_t Param_Size);
-#endif
+#endif // __IN_MEMORY_APP_H
 
 
 
@@ -270,16 +279,8 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam);
 */
 void ModbusAutoUpload(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg);
 
-/**@brief       传感器事件处理,自动上传周期不为0时,周期性地调用ModbusAutoUpload
-* @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
-* @param[in]    arg : 用户自定义的参数,例如设备参数
-* @return       函数执行结果
-* - None
-*/
-void SensorEvent(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg);
-
 
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __MODBUS_H

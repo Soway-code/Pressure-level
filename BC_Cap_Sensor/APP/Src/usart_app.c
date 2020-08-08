@@ -2,14 +2,16 @@
 * @brief        串口应用
 * @details      串口初始化、串口数据收发、中断处理
 * @author       杨春林
-* @date         2020-04-29
-* @version      V1.0.0
+* @date         2020-08-05
+* @version      V1.0.1
 * @copyright    2020-2030,深圳市信为科技发展有限公司
 **********************************************************************************
 * @par 修改日志:
 * <table>
 * <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/04/29  <td>1.0.0    <td>杨春林    <td>创建初始版本
+* <tr><td>2020/08/05  <td>1.0.1    <td>杨春林    <td>接收更新标志函数 
+* Sensor_USART_Get_RX_Updata_Flag 需要输入等待时间 time ，发送完成标志
+* 函数 Sensor_USART_Get_TX_Cplt_Flag 增加了获取信号量函数
 * </table>
 *
 **********************************************************************************
@@ -50,7 +52,7 @@ static void _485_RE_DE_GPIO_Init(void)
   
   RX_ON;
 }
-#endif
+#endif // USART_USING_485
 
 /**@brief       根据波特率和奇偶校验参数初始化传感器串口
 * @param[in]    baudrate_code : 波特率代码; 
@@ -64,7 +66,7 @@ void Sensor_USART_Init(uint8_t baudrate_code, uint8_t parity_code)
     uint32_t parity;
 #ifdef  USING_UART_TIMEOUT
     uint32_t timeout;
-#endif
+#endif // USING_UART_TIMEOUT
     
     switch(baudrate_code)
     {
@@ -107,7 +109,7 @@ void Sensor_USART_Init(uint8_t baudrate_code, uint8_t parity_code)
     BSP_USART_UART_Init(baudrate, parity);
 #ifdef  USART_USING_485
     _485_RE_DE_GPIO_Init();
-#endif
+#endif // USART_USING_485
     
 #ifdef  USING_UART_TIMEOUT
     if(parity_code == USART_PARITY_NONE_CODE)
@@ -120,11 +122,11 @@ void Sensor_USART_Init(uint8_t baudrate_code, uint8_t parity_code)
     }
     timeout = (timeout % 10) ? ((timeout / 10) + 1) : timeout / 10;
     BSP_UART_ReceiverTimeout_Config(timeout);
-#endif
+#endif // USING_UART_TIMEOUT
     
 #ifdef  USING_CHARMATCH
     BSP_UART_CharMatch_Config(DEFAULT_UART_MATCHCHAR);
-#endif
+#endif // USING_CHARMATCH
     BSP_UART_Receive_DMA(USART_Receive_Buf, RECEIVE_SIZE);
 }
 
@@ -183,13 +185,11 @@ uint16_t Sensor_USART_Get_RXBuf_Used_Len(void)
 #ifdef USING_RT_THREAD_OS
 #include <rtthread.h>
 
-#define USART_SEM_NAME      "usart"
-
-static struct rt_semaphore usart_sem;
+static struct rt_semaphore usart_rx_lock;
 static struct rt_semaphore usart_tx_lock;
 
 /**
-* 名称       : stm32_usart_sem_init()
+* 名称       : stm32_usart_rx_lock_init()
 * 创建日期   : 2020-05-18
 * 作者       : 杨春林
 * 功能       : 串口信号量初始化
@@ -205,9 +205,9 @@ static struct rt_semaphore usart_tx_lock;
 * - RT_ERROR(信号量初始化失败)
 * - RT_EOK(信号量初始化成功)
 */
-static int stm32_usart_sem_init(void)
+static int stm32_usart_rx_lock_init(void)
 {
-    if( rt_sem_init(&usart_sem, USART_SEM_NAME, 0, RT_IPC_FLAG_FIFO) != RT_EOK
+    if( rt_sem_init(&usart_rx_lock, USART_RX_LOCK_NAME, 0, RT_IPC_FLAG_FIFO) != RT_EOK
         || rt_sem_init(&usart_tx_lock, USART_TX_LOCK_NAME, 1, RT_IPC_FLAG_FIFO) != RT_EOK)
     {
         return RT_ERROR;
@@ -215,20 +215,28 @@ static int stm32_usart_sem_init(void)
     
     return RT_EOK;        
 }
-INIT_DEVICE_EXPORT(stm32_usart_sem_init);
+INIT_DEVICE_EXPORT(stm32_usart_rx_lock_init);
 
-#endif
+#endif // USING_RT_THREAD_OS
 
 /**@brief       获取接收更新标志
+* @param[in]    time : 如果使用 rt-thread 操作系统则输入信号量等待时间, 
+* 单位为系统时钟节拍
 * @return       函数执行结果
 * - 接收更新标志
 */
-uint8_t Sensor_USART_Get_RX_Updata_Flag(void)
+uint8_t Sensor_USART_Get_RX_Updata_Flag(
+#ifdef USING_RT_THREAD_OS
+int32_t time
+#else
+void
+#endif // USING_RT_THREAD_OS
+)
 {
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
-    rt_sem_take(&usart_sem, RT_WAITING_FOREVER);    //获取信号量
-#endif
+    rt_sem_take(&usart_rx_lock, time);
+#endif // USING_RT_THREAD_OS
     return RX_Updata_Flag;
 }
 
@@ -238,6 +246,10 @@ uint8_t Sensor_USART_Get_RX_Updata_Flag(void)
 */
 uint8_t Sensor_USART_Get_TX_Cplt_Flag(void)
 {  
+/* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
+#ifdef USING_RT_THREAD_OS
+    rt_sem_take(&usart_tx_lock, RT_WAITING_FOREVER);    //获取信号量
+#endif // USING_RT_THREAD_OS
     return TX_Cplt_Flag;
 }
 
@@ -288,11 +300,11 @@ void HAL_UART_RxTimoCallback(UART_HandleTypeDef *huart)
     
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */    
 #ifdef USING_RT_THREAD_OS
-    rt_sem_release(&usart_sem);     //释放信号量
-#endif
+    rt_sem_release(&usart_rx_lock);     //释放信号量
+#endif // USING_RT_THREAD_OS
     RX_Updata_Flag = 1;         //接收更新标志置1
 }
-#endif
+#endif // USING_UART_TIMEOUT
 
 #ifdef  USING_CHARMATCH
 /**@brief       串口字符匹配中断回调函数
@@ -323,11 +335,11 @@ void HAL_UART_CMatchCallback(UART_HandleTypeDef *huart)
     
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */    
 #ifdef USING_RT_THREAD_OS
-    rt_sem_release(&usart_sem);     //释放信号量
-#endif
+    rt_sem_release(&usart_rx_lock);     //释放信号量
+#endif // USING_RT_THREAD_OS
     RX_Updata_Flag = 1;         //接收更新标志置1
 }
-#endif
+#endif // USING_CHARMATCH
 
 /**@brief       串口接收完成中断回调函数,这里串口接收完成表示接收的数据满了或溢出了
 * @param[out]   huart : 串口处理对象指针
@@ -348,10 +360,10 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 #ifdef  USART_USING_485
     RX_ON;
-#endif
+#endif // USART_USING_485
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */    
 #ifdef USING_RT_THREAD_OS
     rt_sem_release(&usart_tx_lock);     //释放信号量
-#endif
+#endif // USING_RT_THREAD_OS
     TX_Cplt_Flag = 1;
 }

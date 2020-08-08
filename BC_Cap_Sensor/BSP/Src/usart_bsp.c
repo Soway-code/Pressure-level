@@ -20,7 +20,7 @@
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
 #include "board.h"
-#endif
+#endif // USING_RT_THREAD_OS
 
 
 /* USER CODE BEGIN 0 */
@@ -112,7 +112,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     hdma_usart_rx.Instance = USARTx_RX_DMA_STREAM;
 #if defined(STM32L0)
     hdma_usart_rx.Init.Request = USARTx_RX_DMA_REQUEST;
-#endif
+#endif // defined(STM32L0)
     hdma_usart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_usart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_rx.Init.MemInc = DMA_MINC_ENABLE;
@@ -131,7 +131,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     hdma_usart_tx.Instance = USARTx_TX_DMA_STREAM;
 #if defined(STM32L0)
     hdma_usart_tx.Init.Request = USARTx_TX_DMA_REQUEST;
-#endif
+#endif // defined(STM32L0)
     hdma_usart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_usart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart_tx.Init.MemInc = DMA_MINC_ENABLE;
@@ -294,7 +294,7 @@ void USARTx_DMA_TX_RX_IRQHandler(void)
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
     rt_interrupt_enter();
-#endif
+#endif // USING_RT_THREAD_OS
     
     HAL_DMA_IRQHandler(&hdma_usart_tx);
     HAL_DMA_IRQHandler(&hdma_usart_rx);
@@ -302,7 +302,7 @@ void USARTx_DMA_TX_RX_IRQHandler(void)
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
     rt_interrupt_leave();
-#endif
+#endif // USING_RT_THREAD_OS
 }
 
 /**@brief       串口中断服务函数
@@ -315,7 +315,7 @@ void USARTx_IRQHandler(void)
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
     rt_interrupt_enter();
-#endif
+#endif // USING_RT_THREAD_OS
     
     if(LL_USART_IsActiveFlag_RTO(huart.Instance))
     {
@@ -359,6 +359,6 @@ void USARTx_IRQHandler(void)
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
     rt_interrupt_leave();
-#endif
+#endif // USING_RT_THREAD_OS
 }
 

@@ -34,23 +34,29 @@
 #define USING_MODBUS_RTU            ///< 使用ModBus RTU协议
 #elif defined(APP_USING_MODBUS_ASCII)
 #define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议
-#endif
+#endif // defined(APP_USING_MODBUS_RTU) or defined(APP_USING_MODBUS_ASCII)
 
 #if defined(APP_SUBCODE_IS_DEVADDR)
 #define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0
-#endif
+#endif // defined(APP_SUBCODE_IS_DEVADDR)
 
 #else
 
-//#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议, 还需要在 usart_app.h 里定义USING_UART_TIMEOUT
-#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议, 还需要在 usart_app.h 里定义USING_CHARMATCH
-//#define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0
+#define USING_MODBUS_RTU            ///< 使用ModBus RTU协议, 还需要在 usart_app.h 里定义USING_UART_TIMEOUT
+//#define USING_MODBUS_ASCII          ///< 使用ModBus ASCII协议, 还需要在 usart_app.h 里定义USING_CHARMATCH
+//#define SUBCODE_IS_DEVADDR          ///< 定义ModBus子码为设备地址，不定义则默认为0(见 DEFAULT_SUBCODE)
 
-#endif
+#endif // USING_RT_THREAD_OS
+
+#define AUTOUPLOAD_CYCLE                1000            ///< 自动上传周期,单位 ms
 
 #define SEND_SIZE                       128              ///< 发送缓存大小
 
 #define DAC_VALUE_MAX   4095        ///< DAC最大值
+
+#ifndef SUBCODE_IS_DEVADDR
+#define DEFAULT_SUBCODE                 0
+#endif  // SUBCODE_IS_DEVADDR
 
 /* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
 #ifdef BOOT_PROGRAM
@@ -58,10 +64,6 @@
 #define RESPONSE_ERR_NONE   0     //响应成功
 #define RESPONSE_REC_ERR    1     //接收错误
 #define RESPONSE_LRC_ERR    2     //校验码错误
-
-#define ADDR_DEVICEADDR     0   
-#define ADDR_ERASEFLAG      2046
-#define ADDR_UPGRADEFLAG    2047
 
 #define UPGRADED_DEVICEADDR     65
 
@@ -71,7 +73,17 @@
 #define UPGRADE_FLAG        0x0C
 #define UPGRADE_FLAG_NONE   0xFF
 
-#endif
+#endif // BOOT_PROGRAM
+
+#if defined(STM32F0)
+#define ADDR_DEVICEADDR     (IN_FLASH_END - 2)
+#define ADDR_ERASEFLAG      (IN_FLASH_END - 1)
+#define ADDR_UPGRADEFLAG    IN_FLASH_END
+#elif defined(STM32L0)
+#define ADDR_DEVICEADDR     (IN_EEPROM_END - 2)
+#define ADDR_ERASEFLAG      (IN_EEPROM_END - 1)
+#define ADDR_UPGRADEFLAG    IN_EEPROM_END
+#endif // defined(STM32F0) or defined(STM32L0)
 
 /** ModBus管理设备的参数结构,可根据不同的产品加入或删除成员 */
 typedef struct {
@@ -114,4 +126,4 @@ void MB_TempDAOut_Calibration(void *arg);
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __MODBUS_CONF_H

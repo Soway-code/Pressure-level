@@ -84,4 +84,4 @@ uint8_t BSP_SPI_TransmitReceive(uint8_t *TxData, uint8_t *RxData, uint16_t Size)
 #ifdef __cplusplus
 }
 #endif
-#endif 
+#endif // __SPI_BSP_H

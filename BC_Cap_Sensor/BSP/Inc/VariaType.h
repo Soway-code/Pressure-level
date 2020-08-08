@@ -32,7 +32,7 @@
 #define  CALIB_CLEAR                0x00                                       //标定清除
 
 #define  COMPENSATE_ENABLE          0x01                                       //补偿使能
-#define  COMPENSATE_DISABLE         0x00                                       //补偿禁止
+#define  COMPENSATE_DISABLE         0x02                                       //补偿禁止
 
 #define  PCAP_FRESH_FLAG            0x0F                                       //PCAP更新数据
 
@@ -43,4 +43,4 @@
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __VARIATYPE_H
