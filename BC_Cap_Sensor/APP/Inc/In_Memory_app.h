@@ -15,6 +15,9 @@
 */
 #ifndef __IN_MEMORY_APP_H
 #define __IN_MEMORY_APP_H
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
 #include "main.h"
 
@@ -22,7 +25,7 @@
 #include "In_Flash.h"
 #elif defined(STM32L0)
 #include "In_EEPROM.h"
-#endif
+#endif // defined(STM32F0) or defined(STM32L0)
 #include "TypeConvert.h"
 
 /***************************** 设备参数在内部存储器中的映射地址 ****************************/
@@ -62,8 +65,8 @@
 #define SYSTEM_PARAM_BAK1                 (RUN_ADDR_BASE     + FLASH_PAGE_SIZE) ///< 系统参数备份1起始地址
 #define SYSTEM_PARAM_BAK2                 (SYSTEM_PARAM_BAK1 + FLASH_PAGE_SIZE) ///< 系统参数备份2起始地址     
 
-#define ORGANIZATION                       SYSTEM_PARAM_BAK2 + \
-                                            SYSTEMPARAM_PROGRAMED + 1           ///< 组织机构代码
+#define ORGANIZATION                      (SYSTEM_PARAM_BAK2 + \
+                                            SYSTEMPARAM_PROGRAMED + 1)          ///< 组织机构代码
 #define PRODUCTION                        (ORGANIZATION  + 31)                  ///< 产品代码
 #define HARDWAREVER                       (PRODUCTION    + 31)                  ///< 硬件版本
 #define SOFTWAREVER                       (HARDWAREVER   + 31)                  ///< 软件版本
@@ -89,7 +92,7 @@
 #define IN_MEMORY_WR_ENABLE             IN_EEPROM_WR_ENABLE
 #define IN_MEMORY_WR_DISABLE            IN_EEPROM_WR_DISABLE
 #define IN_MEMORY_ERR_MAX               WRITE_EEPROM_ERR_MAX
-#endif
+#endif // defined(__IN_FLASH_H) or defined(__IN_EEPROM_H)
 
 
 /**@brief       向内部存储器指定位置写1个字节
@@ -156,4 +159,7 @@ void InMemory_SystemParam_Check(uint8_t *Cur_Param, uint16_t Num_Of_Cur_Param);
 */
 void Check_Device_Param(void);
 
+#ifdef __cplusplus
+}
 #endif
+#endif // __IN_MEMORY_APP_H

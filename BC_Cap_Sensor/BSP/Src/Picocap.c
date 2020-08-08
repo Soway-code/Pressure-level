@@ -9,8 +9,8 @@
 * @par 修改日志:
 * <table>
 * <tr><th>Date        <th>Version  <th>Author    <th>Description
-* <tr><td>2020/04/29  <td>1.0.1    <td>杨春林    <td>修改了写入固件和配置信息的代码,
-* 删除了延时等待函数
+* <tr><td>2020/04/29  <td>1.0.1    <td>杨春林    <td>修改了写入固件和配置信息函数的
+* 程序代码, 删除了延时等待函数
 * </table>
 *
 **********************************************************************************
@@ -366,21 +366,3 @@ uint32_t PCap_Res_Data(uint8_t reg_addr)
     return (receive[1] << 16) | (receive[2] << 8) | receive[3];
 }
 
-/**@brief       读取PCap芯片温度数据
-* @return       函数执行结果
-* - PCap温度数据
-*/
-uint32_t PCap_Res_Temperature(void)
-{
-    uint8_t cmd[4];
-    uint8_t receive[4];
-
-    PCAP_SPI_ENABLE;
-    cmd[0] = PCAP_READ_RESULT_OPT | RESULT_REG10_ADDR;
-    cmd[1] = 0;
-    cmd[2] = 0;
-    cmd[3] = 0;
-    BSP_SPI_TransmitReceive(cmd, receive, 4);
-    PCAP_SPI_DISABLE;
-    return (receive[1] << 16) | (receive[2] << 8) | receive[3];
-}

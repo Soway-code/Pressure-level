@@ -22,7 +22,7 @@
 #define __FLASH_IF_H
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f0xx_hal.h"
+#include "main.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
@@ -59,7 +59,19 @@ enum {
 
 /* Notable Flash addresses */
 #define FLASH_START		              ((uint32_t)0x08000000)
-#define USER_FLASH_END_ADDRESS        0x0801E000
+#define FLASH_START_BANK1             ((uint32_t)0x08000000)
+#define WORDS_IN_HALF_PAGE            ((uint32_t)16)
+#define FLASH_HALF_PAGE_SIZE          ((uint32_t)WORDS_IN_HALF_PAGE*4)
+#define FLASH_LAST_SECTOR_BANK1       ((uint32_t)0x08017000)
+#define FLASH_LAST_PAGE_BANK1         ((uint32_t)0x08017F00)
+#define FLASH_END_BANK1               ((uint32_t)0x08017FFF)
+#define FLASH_START_BANK2             ((uint32_t)0x08018000)
+#if defined(STM32F0)
+#define USER_FLASH_END_ADDRESS        ((uint32_t)0x0801E000)
+#elif defined(STM32L0)
+#define USER_FLASH_END_ADDRESS        ((uint32_t)0x08020000)
+#endif
+#define FLASH_BANK1_MASK              ((uint32_t)0xF0FFFFFF)
 
 /* Define the user application size */
 #define USER_FLASH_SIZE               ((uint32_t)0x00003000) /* Small default template application */

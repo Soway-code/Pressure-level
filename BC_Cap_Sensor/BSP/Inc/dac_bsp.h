@@ -33,7 +33,7 @@
 #elif defined(STM32L0)
 #define DACx_CLK_ENABLE()               __HAL_RCC_DAC_CLK_ENABLE()
 #define DACx_CLK_DISABLE()              __HAL_RCC_DAC_CLK_DISABLE()
-#endif
+#endif // defined(STM32F0) or defined(STM32L0)
 
 /* Definition for DACx Channel Pin */
 #define DACx_CHANNEL1_PIN               GPIO_PIN_4
@@ -58,7 +58,7 @@ typedef enum {
 
 #define DAC_DEVICE_NAME     "dac"
 
-#endif
+#endif // USING_RT_THREAD_OS
 
 
 /**@brief       DAC≥ı ºªØ
@@ -81,4 +81,4 @@ uint8_t BSP_DAC_Convert(uint16_t DA_Value, DA_CHANNEL_NUM DA_Channel_Num);
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ dac_H */
+#endif // __dac_H

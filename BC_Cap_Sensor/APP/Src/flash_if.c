@@ -43,7 +43,13 @@ void FLASH_If_Init(void)
   HAL_FLASH_Unlock();
 
   /* Clear all FLASH flags */
+#if defined(STM32F0)
   __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPERR);
+#elif defined(STM32L0)
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_SIZERR |
+                         FLASH_FLAG_OPTVERR | FLASH_FLAG_RDERR | FLASH_FLAG_FWWERR |
+                         FLASH_FLAG_NOTZEROERR);
+#endif
   /* Unlock the Program memory */
   HAL_FLASH_Lock();
 }
@@ -141,6 +147,7 @@ uint32_t FLASH_If_Write(uint32_t destination, uint32_t *p_source, uint32_t lengt
   */
 uint32_t FLASH_If_GetWriteProtectionStatus(void)
 {
+#if defined(STM32F0)
   uint32_t ProtectedPAGE = FLASHIF_PROTECTION_NONE;
   FLASH_OBProgramInitTypeDef OptionsBytesStruct;
 
@@ -168,6 +175,56 @@ uint32_t FLASH_If_GetWriteProtectionStatus(void)
     /* No write protected sectors inside the user flash area */
     return FLASHIF_PROTECTION_NONE;
   }
+#elif defined(STM32L0)
+  FLASH_OBProgramInitTypeDef config;
+  FLASH_AdvOBProgramInitTypeDef adv_config;
+  uint32_t wrp1_status = 0, wrp2_status = 0, sectornumber = 0;
+  uint32_t protected = FLASHIF_PROTECTION_NONE;
+
+  /* Get the current configuration */
+  HAL_FLASHEx_OBGetConfig( &config );
+  HAL_FLASHEx_AdvOBGetConfig( &adv_config );
+
+  sectornumber = FLASH_SECTOR_NUMBER;
+
+  /* Not taking application size into account, all the memory starting the beginning address is checked */
+  /* As the APPLICATION_ADDRESS is a define constant, this code may be omitted by the optimization in   */
+  /* compiler. However it is present for case of user specified APPLICATION_ADDRESS value.               */
+  if ( adv_config.BootConfig == OB_BOOT_BANK1 )  /* Test on the user application to be ran in Bank1 */
+  {
+    if (sectornumber < 32)
+    {
+      wrp1_status = config.WRPSector & FLASH_PROTECTED_SECTORS;
+      wrp2_status = config.WRPSector2 & OB_WRP2_AllPages;
+    }
+    else
+    {
+      wrp1_status = config.WRPSector;
+      wrp2_status = config.WRPSector2 & ~(uint32_t)(((1 << (sectornumber - 32 )) - 1));
+    }
+  }
+  else /* running from bank 2 */
+  {
+    if (sectornumber < 32)
+    {
+      wrp1_status = config.WRPSector & ( FLASH_PROTECTED_SECTORS | (~FLASH_BANK1_MASK) );
+      wrp2_status = config.WRPSector2 & OB_WRP2_AllPages;
+    }
+    else
+    {
+      wrp1_status = config.WRPSector & (~FLASH_BANK1_MASK);
+      wrp2_status = config.WRPSector2 & ~(uint32_t)(((1 << (sectornumber - 32 )) - 1));
+    }
+  }
+
+  /* Final evaluation of status */
+  if ((wrp1_status != 0) || (wrp2_status != 0))
+  {
+    protected = FLASHIF_PROTECTION_WRPENABLED;
+  }
+  
+  return protected;	
+#endif
 }
 
 /**
@@ -177,6 +234,7 @@ uint32_t FLASH_If_GetWriteProtectionStatus(void)
   */
 uint32_t FLASH_If_WriteProtectionConfig(uint32_t protectionstate)
 {
+#if defined(STM32F0)
   uint32_t ProtectedPAGE = 0x0;
   FLASH_OBProgramInitTypeDef config_new, config_old;
   HAL_StatusTypeDef result = HAL_OK;
@@ -213,6 +271,72 @@ uint32_t FLASH_If_WriteProtectionConfig(uint32_t protectionstate)
   }
   
   return (result == HAL_OK ? FLASHIF_OK: FLASHIF_PROTECTION_ERRROR);
+#elif defined(STM32L0)
+  FLASH_OBProgramInitTypeDef config_new, config_old;
+  FLASH_AdvOBProgramInitTypeDef adv_config;
+  HAL_StatusTypeDef result;
+  uint32_t sectornumber = 0;
+
+  sectornumber = FLASH_SECTOR_NUMBER;
+
+  /* Get the current configuration */
+  HAL_FLASHEx_OBGetConfig( &config_old );
+  HAL_FLASHEx_AdvOBGetConfig( &adv_config );
+
+  /* The parameter says whether we turn the protection on or off */
+  config_new.WRPState = (protectionstate == FLASHIF_WRP_ENABLE ? OB_WRPSTATE_ENABLE : OB_WRPSTATE_DISABLE);
+
+  /* We want to modify only the Write protection */
+  config_new.OptionType = OPTIONBYTE_WRP;
+  
+  /* No read protection, keep BOR and reset settings */
+  config_new.RDPLevel = OB_RDP_LEVEL_0;
+  config_new.BORLevel = config_old.BORLevel;
+  config_new.USERConfig = config_old.USERConfig;
+
+  /* Not taking application size into account, all the memory starting the beginning address is checked */
+  /* As the APPLICATION_ADDRESS is a define constant, this code may be omitted by the optimization in   */
+  /* compiler. However it is present for case of user specified APPLICATION_ADDRESS value.               */
+  /* Not taking application size into account, all the memory starting the beginning address is modified */
+  if ( adv_config.BootConfig != OB_BOOT_BANK1 ) /* BANK2 active for boot */
+  {
+    if (sectornumber < 32)
+    {
+      config_new.WRPSector = FLASH_BANK1_MASK & (config_old.WRPSector | FLASH_PROTECTED_SECTORS);
+      config_new.WRPSector2 = config_old.WRPSector2 | OB_WRP2_AllPages;
+    }
+    else
+    {
+      config_new.WRPSector = FLASH_BANK1_MASK;
+      config_new.WRPSector2 = config_old.WRPSector2 | (~(uint32_t)((1 << (sectornumber - 32)) - 1));
+    }
+  }
+  else /* Memory ordering normal */
+  {
+    if (sectornumber < 32)
+    {
+      config_new.WRPSector = config_old.WRPSector | FLASH_PROTECTED_SECTORS;
+      config_new.WRPSector2 = config_old.WRPSector2 | OB_WRP2_AllPages;
+    }
+    else
+    {
+      config_new.WRPSector = 0;
+      config_new.WRPSector2 = config_old.WRPSector2 | (~(uint32_t)((1 << (sectornumber - 32)) - 1));
+    }
+  }
+
+  /* Initiating the modifications */
+  result = HAL_FLASH_OB_Unlock();
+
+  /* program if unlock is successful */
+  if (result == HAL_OK)
+  {
+    HAL_FLASHEx_AdvOBProgram(&adv_config);
+    result = HAL_FLASHEx_OBProgram(&config_new);
+  }
+
+  return (result == HAL_OK ? FLASHIF_OK: FLASHIF_PROTECTION_ERRROR);
+#endif
 }
 /**
   * @}

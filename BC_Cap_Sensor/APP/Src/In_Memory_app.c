@@ -28,7 +28,7 @@ const uint8_t User_Default_Param[PRO_DEFAULT_LEN] =
     0x00,                                               //奇偶校验(无校验)
     0x01,                                               //滤波系数(10s)
     0x00,                                               //自动发送周期
-    0x00,                                               //补偿使能
+    COMPENSATE_DISABLE,                                 //补偿使能
     0x00,                                               //是否冻结设备
     0x00,                                               //输出方式
 
@@ -76,7 +76,7 @@ uint8_t InMemory_Write_OneByte(uint16_t RWAddr, uint8_t WrData)
     return InEEPROM_Write_OneByte(RWAddr, WrData);
 #elif defined(__IN_FLASH_H)
     return InFlash_Write_OneByte(RWAddr, WrData);
-#endif
+#endif // defined(__IN_EEPROM_H) or defined(__IN_FLASH_H)
 }
 
 /**@brief       向内部存储器指定位置读1个字节
@@ -91,7 +91,7 @@ uint8_t InMemory_Read_OneByte(uint16_t RWAddr)
     return InEEPROM_Read_OneByte(RWAddr);
 #elif defined(__IN_FLASH_H)
     return InFlash_Read_OneByte(RWAddr);
-#endif
+#endif // defined(__IN_EEPROM_H) or defined(__IN_FLASH_H)
 }
 /**@brief       向内部存储器指定位置写多个字节
 * @param[in]    RWAddr : 写起始地址
@@ -108,7 +108,7 @@ uint8_t InMemory_Write_MultiBytes(uint16_t RWAddr, uint8_t const *pWrbuf, uint16
     return InEEPROM_Write_MultiBytes(RWAddr, pWrbuf, Wrlen);
 #elif defined(__IN_FLASH_H)
     return InFlash_Write_MultiBytes(RWAddr, pWrbuf, Wrlen);
-#endif
+#endif // defined(__IN_EEPROM_H) or defined(__IN_FLASH_H)
 }
 
 /**@brief       向内部存储器指定位置读多个字节
@@ -126,7 +126,7 @@ void InMemory_Read_MultiBytes(uint16_t RWAddr, uint8_t *pRdbuf, uint16_t Rdlen)
     InEEPROM_Read_MultiBytes(RWAddr, pRdbuf, Rdlen);
 #elif defined(__IN_FLASH_H)
     InFlash_Read_MultiBytes(RWAddr, pRdbuf, Rdlen);
-#endif
+#endif // defined(__IN_EEPROM_H) or defined(__IN_FLASH_H)
 }
 
 /**@brief       向STM32F072xx内部Flash指定位置写多个字节且备份3份

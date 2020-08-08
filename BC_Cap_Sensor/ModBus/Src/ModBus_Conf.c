@@ -15,12 +15,13 @@
 **********************************************************************************
 */
 
-#include "ModBus_Conf.h"
+#include "ModBus.h"
+
 #if defined(USING_MODBUS_RTU)
 #include "ModBus_RTU.h"
 #elif defined(USING_MODBUS_ASCII)
 #include "ModBus_ASCII.h"
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
 
 
 #ifdef __PICOCAP_APP_H
@@ -62,8 +63,13 @@ static int MB_SendData_NoCheck(ModBusBaseParam_TypeDef *ModBusBaseParam);
 * - None
 * @note         寄存器地址不能越界
 */
-static void ModBus_ReadPreHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, uint16_t *ReadAddr, uint16_t *RegNum)
+static void ModBus_ReadPreHandle(   ModBusBaseParam_TypeDef *ModBusBaseParam, 
+                                    uint16_t *ReadAddr, 
+                                    uint16_t *RegNum, 
+                                    uint8_t *Err_Status)
 {
+    *Err_Status = OP_SUCCESS;
+    
     if(ReadAddr != NULL)
     {
         //寄存器地址高字节
@@ -71,6 +77,19 @@ static void ModBus_ReadPreHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, uint1
         *ReadAddr <<= 8;
         //寄存器地址高字节
         *ReadAddr |= ModBusBaseParam->ModBus_TX_RX.Receive_Buf[3];
+#if defined(SUBCODE_IS_DEVADDR)
+        if((*ReadAddr >> 8) != ModBusBaseParam->Device_Addr)
+        {
+            *Err_Status = OP_FAILED;
+        }        
+#else
+        if((*ReadAddr >> 8) != DEFAULT_SUBCODE)
+        {
+            *Err_Status = OP_FAILED;
+            return;
+        }
+#endif // defined(SUBCODE_IS_DEVADDR)
+        *ReadAddr &= 0x00FF;
     }
 
     if(RegNum != NULL)
@@ -98,8 +117,13 @@ static void ModBus_ReadPreHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, uint1
 * - None
 * @note         寄存器地址不能越界
 */
-static void ModBus_WritePreHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, uint16_t *WriteAddr, uint16_t *RegNum)
+static void ModBus_WritePreHandle(  ModBusBaseParam_TypeDef *ModBusBaseParam, 
+                                    uint16_t *WriteAddr, 
+                                    uint16_t *RegNum, 
+                                    uint8_t *Err_Status)
 {
+    *Err_Status = OP_SUCCESS;
+    
     if(WriteAddr != NULL)
     {
         //寄存器地址高字节
@@ -107,6 +131,19 @@ static void ModBus_WritePreHandle(ModBusBaseParam_TypeDef *ModBusBaseParam, uint
         *WriteAddr <<= 8;
         //寄存器地址高字节
         *WriteAddr |= ModBusBaseParam->ModBus_TX_RX.Receive_Buf[3];
+#if defined(SUBCODE_IS_DEVADDR)
+        if((*WriteAddr >> 8) != ModBusBaseParam->Device_Addr)
+        {
+            *Err_Status = OP_FAILED;
+        }        
+#else
+        if((*WriteAddr >> 8) != DEFAULT_SUBCODE)
+        {
+            *Err_Status = OP_FAILED;
+            return;
+        }
+#endif // defined(SUBCODE_IS_DEVADDR)
+        *WriteAddr &= 0x00FF;
     }
 
     if(RegNum != NULL)
@@ -141,19 +178,18 @@ void ModbusFunc03(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     uint16_t ReadAddr;
     //寄存器数量
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     //设备参数
     ModBus_Device_Param *Device_Param;
         
     Device_Param = (ModBus_Device_Param *)arg;
     //读预处理
-    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum);
+    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum, &Err_Status);
     //访问地址不在有效范围内
-    if( 
-#if defined(SUBCODE_IS_DEVADDR)
-        (ReadAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (ReadAddr & 0xFF) < HOLDING_REG_REGION1_BGEIN 
-        || ((ReadAddr & 0xFF) + RegNum) > (HOLDING_REG_REGION1_END + 1)
+    if( Err_Status != OP_SUCCESS 
+        || ReadAddr < HOLDING_REG_REGION1_BGEIN 
+        || (ReadAddr + RegNum) > (HOLDING_REG_REGION1_END + 1)
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -163,9 +199,6 @@ void ModbusFunc03(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         return;
     }
 
-#if defined(SUBCODE_IS_DEVADDR)
-    ReadAddr &= 0x00FF;
-#endif
     ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++]
         = RegNum * 2;
     for(Nr = 0; Nr < RegNum; Nr++, ReadAddr++)
@@ -213,12 +246,12 @@ void ModbusFunc03(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 
         case 0x0037:
             //电容修正系数K
-            DataBuf = (uint16_t)(Device_Param->PCap_DataConvert->Correct_K * 100);
+            DataBuf = (uint16_t)(Device_Param->PCap_DataConvert->Correct_K * 100.0);
         break;
 
         case 0x0038:
             //电容修正系数B
-            DataBuf = (uint16_t)Device_Param->PCap_DataConvert->Correct_B + 100;
+            DataBuf = (uint16_t)Device_Param->PCap_DataConvert->Correct_B + 100.0;
         break;
 
         case 0x0039:
@@ -242,8 +275,10 @@ void ModbusFunc03(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         break;
 
         default:
-            DataBuf = 0;
-        break;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+            ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+            return;
         }
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] 
             = (uint8_t)(DataBuf >> 8);
@@ -267,6 +302,8 @@ void ModbusFunc04(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     uint16_t ReadAddr;
     //寄存器数量
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     //寄存器数据
     uint32_t DataBuf;
     //设备参数
@@ -274,14 +311,11 @@ void ModbusFunc04(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         
     Device_Param = (ModBus_Device_Param *)arg;
     //读预处理
-    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum);
+    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum, &Err_Status);
     //寄存器地址无效
-    if( 
-#if defined(SUBCODE_IS_DEVADDR)
-        (ReadAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        ((ReadAddr & 0xFF) + RegNum) > (INPUT_REG_REGION2_END + 2)
-        || ((ReadAddr & 0xFF) & 0x01) != 0 || (RegNum & 0x01) != 0
+    if( Err_Status != OP_SUCCESS 
+        || (ReadAddr + RegNum) > (INPUT_REG_REGION2_END + 2)
+        || (ReadAddr & 0x01) != 0 || (RegNum & 0x01) != 0
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -290,9 +324,6 @@ void ModbusFunc04(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         return;
     }
     
-#if defined(SUBCODE_IS_DEVADDR)
-    ReadAddr &= 0x00FF;
-#endif
     ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++]
         = RegNum * 2;
     for(Nr = 0; Nr < RegNum; Nr += 2, ReadAddr += 2)
@@ -322,8 +353,10 @@ void ModbusFunc04(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         break;
 
         default:
-            DataBuf = 0;
-        break;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+            ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+            return;
         }
 
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] 
@@ -347,6 +380,8 @@ void ModbusFunc05(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 {
     //寄存器地址
     uint16_t WriteAddr;
+    //错误状态
+    uint8_t Err_Status;
     //寄存器数据
     uint16_t DataBuf;
     static uint8_t CalibFlag = CALIB_CLEAR;
@@ -355,17 +390,12 @@ void ModbusFunc05(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         
     Device_Param = (ModBus_Device_Param *)arg;
     //写预处理
-    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, NULL);    
+    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, NULL, &Err_Status);    
     //地址无效
-    if(
-#if defined(SUBCODE_IS_DEVADDR)
-        ((WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#else
-        (
-#endif
-        (WriteAddr & 0xFF) < SINGLE_COIL_REGION1_BEGIN 
-        || (WriteAddr & 0xFF) > SINGLE_COIL_REGION1_END)
-        && (WriteAddr & 0xFF) != 0x004A)
+    if(Err_Status != OP_SUCCESS 
+        || ((WriteAddr < SINGLE_COIL_REGION1_BEGIN 
+        || WriteAddr > SINGLE_COIL_REGION1_END)
+        && WriteAddr != 0x004A))
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
@@ -373,9 +403,6 @@ void ModbusFunc05(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         return;
     }
 
-#if defined(SUBCODE_IS_DEVADDR)
-    WriteAddr &= 0x00FF;
-#endif
     //数据内容高字节
     DataBuf = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[4];
     DataBuf <<= 8;
@@ -393,88 +420,91 @@ void ModbusFunc05(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
      
     switch(WriteAddr)
     {
-    case 0x004A:                                //为了跟老协议兼容
-        //内部存储器使能或禁止
-        if(0xFF00 == DataBuf)
-        {
-            ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_ENABLE;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_DISABLE;
-        }
-    break;      
-      
-    case 0x0050:
-        if(ModBusBaseParam->InRomWrEn == IN_MEMORY_WR_ENABLE)
-        {
-            //电容标定
-            if(0xFF00 == DataBuf)       //标定满量程
-            {
-                Calib_CapMax = Device_Param->PCap_DataConvert_Out->PCap_ResultValue;
-                CalibFlag |= CALIB_CAPMAX_FLAG;
-            }
-            else if(0x0000 == DataBuf)  //标定零点
-            {
-                Calib_CapMin = Device_Param->PCap_DataConvert_Out->PCap_ResultValue;
-                CalibFlag |= CALIB_CAPMIN_FLAG;
-            }
-            //电容标定标志位有效就写入标定内容  
-            if(CALIB_CAPEOC_FLAG == CalibFlag)
-            {
-                MB_Cap_Calibration(arg);
-                CalibFlag = CALIB_CLEAR;
-            }
-        }
-        else
-        {
-            goto __rom_error;
-        }
-    break;
-
-    case 0x0051:
-        if(ModBusBaseParam->InRomWrEn == IN_MEMORY_WR_ENABLE)
-        {
-            //恢复电容标定出厂值
+        case 0x004A:                                //为了跟老协议兼容
+            //内部存储器使能或禁止
             if(0xFF00 == DataBuf)
             {
-                Calib_CapMin = Device_Param->PCap_DataConvert->CapMinBak;
-                Calib_CapMax = Device_Param->PCap_DataConvert->CapMaxBak;
-                MB_Cap_Calibration(arg);
+                ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_ENABLE;
             }
-        }
-        else
-        {
-            goto __rom_error;
-        }
-    break;
+            else
+            {
+                ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_DISABLE;
+            }
+        break;      
+          
+        case 0x0050:
+            if(ModBusBaseParam->InRomWrEn == IN_MEMORY_WR_ENABLE)
+            {
+                //电容标定
+                if(0xFF00 == DataBuf)       //标定满量程
+                {
+                    Calib_CapMax = Device_Param->PCap_DataConvert_Out->PCap_ResultValue;
+                    CalibFlag |= CALIB_CAPMAX_FLAG;
+                }
+                else                        //标定零点
+                {
+                    Calib_CapMin = Device_Param->PCap_DataConvert_Out->PCap_ResultValue;
+                    CalibFlag |= CALIB_CAPMIN_FLAG;
+                }
+                //电容标定标志位有效就写入标定内容  
+                if(CALIB_CAPEOC_FLAG == CalibFlag)
+                {
+                    MB_Cap_Calibration(arg);
+                    CalibFlag = CALIB_CLEAR;
+                }
+            }
+            else
+            {
+                goto __rom_error;
+            }
+        break;
 
-    case 0x0052:
-        //设备冻结或解冻
-        if(0xFF00 == DataBuf)
-        {
-            ModBusBaseParam->ModBus_CallBack = MB_Freeze;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            ModBusBaseParam->Freeze = FREEZE_DISABLE;
-        }
-    break;
+        case 0x0051:
+            if(ModBusBaseParam->InRomWrEn == IN_MEMORY_WR_ENABLE)
+            {
+                //恢复电容标定出厂值
+                if(0xFF00 == DataBuf)
+                {
+                    Calib_CapMin = Device_Param->PCap_DataConvert->CapMinBak;
+                    Calib_CapMax = Device_Param->PCap_DataConvert->CapMaxBak;
+                    MB_Cap_Calibration(arg);
+                }
+            }
+            else
+            {
+                goto __rom_error;
+            }
+        break;
 
-    case 0x0053:
-        //内部Flash使能或禁止
-        if(0xFF00 == DataBuf)
-        {
-            ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_ENABLE;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_DISABLE;
-        }
-    break;
-            
-    default:
-    break;
+        case 0x0052:
+            //设备冻结或解冻
+            if(0xFF00 == DataBuf)
+            {
+                ModBusBaseParam->ModBus_CallBack = MB_Freeze;
+            }
+            else    
+            {
+                ModBusBaseParam->Freeze = FREEZE_DISABLE;
+            }
+        break;
+
+        case 0x0053:
+            //内部Flash使能或禁止
+            if(0xFF00 == DataBuf)
+            {
+                ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_ENABLE;
+            }
+            else
+            {
+                ModBusBaseParam->InRomWrEn = IN_MEMORY_WR_DISABLE;
+            }
+        break;
+                
+        default:
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+            ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+            return;
     }	
     return;
 __rom_error:
@@ -498,6 +528,8 @@ void ModbusFunc10(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     uint16_t WriteAddr;
     //寄存器数量
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     //数据长度
     uint16_t DataLen;
     //16位数据暂存
@@ -510,15 +542,11 @@ void ModbusFunc10(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     //数据长度
     DataLen = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6];
     //写预处理
-    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum);    
+    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum, &Err_Status);    
     //寄存器地址无效
-    if( 
-#if defined(SUBCODE_IS_DEVADDR)
-        (WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (WriteAddr & 0xFF) < MUL_REG_REGION1_BEGIN 
-        || ((WriteAddr & 0xFF) + RegNum) > (MUL_REG_REGION1_END + 1)
-        || (DataLen != (RegNum * 2))
+    if( Err_Status != OP_SUCCESS 
+        || WriteAddr < MUL_REG_REGION1_BEGIN 
+        || (WriteAddr + RegNum) > (MUL_REG_REGION1_END + 1)
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -527,9 +555,6 @@ void ModbusFunc10(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         return;
     }
 
-#if defined(SUBCODE_IS_DEVADDR)
-    WriteAddr &= 0x00FF;
-#endif
     //内部ROM访问禁止
     if(IN_MEMORY_WR_ENABLE != ModBusBaseParam->InRomWrEn)
     {
@@ -547,115 +572,148 @@ void ModbusFunc10(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 
         switch(WriteAddr)
         {
-        case 0x0030:
-            //设备地址
-            if(0 < u16temp && 0xF8 > u16temp)
-            {
-                ModBusBaseParam->Device_Addr = u16temp;
-                InMemory_Write3T_MultiBytes(DEVICE_ADDR, &ModBusBaseParam->Device_Addr, 1);
-            }
-        break;
-                
-        case 0x0031:
-            //波特率
-            if(0x06 > u16temp)
-            {
-                ModBusBaseParam->BaudRate = u16temp;
-                InMemory_Write3T_MultiBytes(BAUDRATE, &ModBusBaseParam->BaudRate, 1);
-                ModBusBaseParam->ModBus_CallBack = MB_USART_ReInit;
-            }
-        break;
-                
-        case 0x0032:
-            //奇偶校验
-            if(0x03 > u16temp)
-            {
-                ModBusBaseParam->Parity = u16temp;
-                InMemory_Write3T_MultiBytes(PARITY, &ModBusBaseParam->Parity, 1);
-                ModBusBaseParam->ModBus_CallBack = MB_USART_ReInit;
-            }
-        break;
-          
-        case 0x0033:
-            //空
-        break;
-          
-        case 0x0034:
-            //补偿使能
-            if(2 > u16temp)
-            {
+            case 0x0030:
+                //设备地址
+                if(0 < u16temp && 0xF8 > u16temp)
+                {
+                    ModBusBaseParam->Device_Addr = u16temp;
+                    InMemory_Write3T_MultiBytes(DEVICE_ADDR, &ModBusBaseParam->Device_Addr, 1);
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+                    
+            case 0x0031:
+                //波特率
+                if(0x06 > u16temp)
+                {
+                    ModBusBaseParam->BaudRate = u16temp;
+                    InMemory_Write3T_MultiBytes(BAUDRATE, &ModBusBaseParam->BaudRate, 1);
+                    ModBusBaseParam->ModBus_CallBack = MB_USART_ReInit;
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+                    
+            case 0x0032:
+                //奇偶校验
+                if(0x03 > u16temp)
+                {
+                    ModBusBaseParam->Parity = u16temp;
+                    InMemory_Write3T_MultiBytes(PARITY, &ModBusBaseParam->Parity, 1);
+                    ModBusBaseParam->ModBus_CallBack = MB_USART_ReInit;
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x0033:
+                //空
+            break;
+              
+            case 0x0034:
+                //补偿使能
                 Device_Param->PCap_DataConvert->CompenEn = u16temp;
-                InMemory_Write3T_MultiBytes(COMPENSATE, &Device_Param->PCap_DataConvert->CompenEn, 1);
-            }
-        break;
-          
-        case 0x0035:
-            //滤波系数
-            if(0x0A > u16temp)
-            {
-                Device_Param->DataFilter->FilterFactor = u16temp;
-                InMemory_Write3T_MultiBytes(FILTER, &Device_Param->DataFilter->FilterFactor, 1);
-                SwitchCurFilter(Device_Param->DataFilter->FilterFactor, Device_Param->DataFilter);
-            }
-        break;
-          
-        case 0x0036:
-            //自动上传周期
-            ModBusBaseParam->AutoUpload = u16temp;
-            InMemory_Write3T_MultiBytes(AUTO_UPLOAD, &ModBusBaseParam->AutoUpload, 1);
-        break;
-          
-        case 0x0037:
-            //电容修正系数K
-            if(0 < u16temp)
-            {
-                Device_Param->PCap_DataConvert->Correct_K = (float)u16temp / 100.0;
-                InMemory_Write3T_MultiBytes(CORRECT_K, 
-                                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + Index], 2);
-            }
-        break;
-          
-        case 0x0038:
-            //电容修正系数B
-            Device_Param->PCap_DataConvert->Correct_B = (float)u16temp;
-            InMemory_Write3T_MultiBytes(CORRECT_B, 
-                                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + Index], 2);
-        break;
-          
-        case 0x0039:
-            //输出方式
-            if(2 > u16temp)
-            {
-                ModBusBaseParam->Output_Mode = u16temp;
-                InMemory_Write3T_MultiBytes(OUTPUTMODE, &ModBusBaseParam->Output_Mode, 1);
-            }
-        break;
-          
-        case 0x003F:
-            //量程
-            if(u16temp > 0)
-            {
-                Device_Param->PCap_DataConvert->HeightRange = u16temp;
-                InMemory_Write3T_MultiBytes(HEIGHTRANGE, 
+                InMemory_Write3T_MultiBytes(COMPENSATE, 
+                                        (const uint8_t *)&Device_Param->PCap_DataConvert->CompenEn, 1);
+            break;
+              
+            case 0x0035:
+                //滤波系数
+                if(0x0A > u16temp)
+                {
+                    Device_Param->DataFilter->FilterFactor = u16temp;
+                    InMemory_Write3T_MultiBytes(FILTER, &Device_Param->DataFilter->FilterFactor, 1);
+                    SwitchCurFilter(Device_Param->DataFilter->FilterFactor, Device_Param->DataFilter);
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x0036:
+                //自动上传周期
+                ModBusBaseParam->AutoUpload = u16temp;
+                InMemory_Write3T_MultiBytes(AUTO_UPLOAD, &ModBusBaseParam->AutoUpload, 1);
+            break;
+              
+            case 0x0037:
+                //电容修正系数K
+                if(0 < u16temp)
+                {
+                    Device_Param->PCap_DataConvert->Correct_K = (float)u16temp / 100.0;
+                    InMemory_Write3T_MultiBytes(CORRECT_K, 
                                         (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + Index], 2);
-            }
-        break;
-          
-        case 0x0040:
-            //空
-        break;
-          
-        case 0x0041:
-            //空
-        break;
-          
-        default:
-            
-        break;
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x0038:
+                //电容修正系数B
+                Device_Param->PCap_DataConvert->Correct_B = (float)u16temp - 100.0;
+                InMemory_Write3T_MultiBytes(CORRECT_B, 
+                                        (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + Index], 2);
+            break;
+              
+            case 0x0039:
+                //输出方式
+                if(2 > u16temp)
+                {
+                    ModBusBaseParam->Output_Mode = u16temp;
+                    InMemory_Write3T_MultiBytes(OUTPUTMODE, &ModBusBaseParam->Output_Mode, 1);
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x003F:
+                //量程
+                if(u16temp > 0)
+                {
+                    Device_Param->PCap_DataConvert->HeightRange = u16temp;
+                    InMemory_Write3T_MultiBytes(HEIGHTRANGE, 
+                                            (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + Index], 2);
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x0040:
+                //空
+            break;
+              
+            case 0x0041:
+                //空
+            break;
+              
+            default:
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+                ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+                return;
         }     
             
         Index += DataLen;        
     }
+    return;
+__error:
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_VALU_EXCEPTION;
+    ModBusBaseParam->ModBus_TX_RX.Send_Len = 3; 
 }
 
 /**@brief       Modbus 25功能码消息帧处理
@@ -668,6 +726,8 @@ void ModbusFunc25(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 {
     //寄存器地址
     uint16_t WriteAddr;
+    //错误状态
+    uint8_t Err_Status;
     //数据内容
     uint16_t DataBuf;
     //设备参数
@@ -679,6 +739,9 @@ void ModbusFunc25(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         
     Device_Param = (ModBus_Device_Param *)arg;
     
+    //写预处理
+    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, NULL, &Err_Status);
+    
     if(ModBusBaseParam->InRomWrEn != IN_MEMORY_WR_ENABLE)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -686,28 +749,18 @@ void ModbusFunc25(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-
-    //写预处理
-    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, NULL);
+    
     //寄存器地址无效
-    if(
-#if defined(SUBCODE_IS_DEVADDR)
-        ((WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#else
-        (
-#endif
-        (WriteAddr & 0xFF) > _25_FNUC_REG_REGION1_END)
-        && (WriteAddr & 0x00B0) != 0x00B0)
+    if( Err_Status != OP_SUCCESS 
+        || ((WriteAddr > _25_FNUC_REG_REGION1_END)
+        && (WriteAddr & 0x00B0) != 0x00B0))
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-    
-#if defined(SUBCODE_IS_DEVADDR)
-    WriteAddr &= 0x00FF;
-#endif
+
     //寄存器内容高字节
     DataBuf = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[4];
     DataBuf <<= 8;
@@ -725,156 +778,185 @@ void ModbusFunc25(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
 
     switch(WriteAddr & ~0x00B0)
     {
-    case 0x0000:
-    //空
-    break;
+        case 0x0000:
+        //空
+        break;
 
-    case 0x0001:
-        //电容DA标定上下刻度线
-        if(DAOUTCLIB_ENABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn)
-        {
+        case 0x0001:
+            //电容DA标定上下刻度线
+            if(DAOUTCLIB_ENABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn)
+            {
+                if(0xFF00 == DataBuf)
+                {
+                    CapDA_ClibFlag |= CALIB_CAPDAHIH_FLAG;
+                    Calib_CapDAHigh = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                }
+                else
+                {
+                    CapDA_ClibFlag |= CALIB_CAPDALOW_FLAG;
+                    Calib_CapDALow = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                }
+            }
+            else
+            {
+                goto __error;
+            }
+        break;
+
+        case 0x0002:
+            //电容DA标定使能
             if(0xFF00 == DataBuf)
             {
-                CapDA_ClibFlag |= CALIB_CAPDAHIH_FLAG;
-                Calib_CapDAHigh = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                CapDA_ClibFlag = CALIB_CLEAR;
+                Device_Param->PCap_DataConvert->CapDA_ClibEn = DAOUTCLIB_ENABLE;
             }
-            else if(0x0000 == DataBuf)
+            else
             {
-                CapDA_ClibFlag |= CALIB_CAPDALOW_FLAG;
-                Calib_CapDALow = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                Device_Param->PCap_DataConvert->CapDA_ClibEn = DAOUTCLIB_DISABLE;
             }
-        }
-    break;
 
-    case 0x0002:
-        //电容DA标定使能
-        if(0xFF00 == DataBuf)
-        {
-            Device_Param->PCap_DataConvert->CapDA_ClibEn = DAOUTCLIB_ENABLE;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            Device_Param->PCap_DataConvert->CapDA_ClibEn = DAOUTCLIB_DISABLE;
-        }
+            if(DAOUTCLIB_DISABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn 
+                && (CapDA_ClibFlag & (CALIB_CAPDAMAX_FLAG | CALIB_CAPDAMIN_FLAG)) 
+                == (CALIB_CAPDAMAX_FLAG | CALIB_CAPDAMIN_FLAG))
+            {
+                MB_CapDAOut_Calibration(arg);
+                CapDA_ClibFlag = CALIB_CLEAR;
+            }
+        break;
 
-        if(DAOUTCLIB_DISABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn 
-            && (CapDA_ClibFlag & (CALIB_CAPDAMAX_FLAG | CALIB_CAPDAMIN_FLAG)) 
-            == (CALIB_CAPDAMAX_FLAG | CALIB_CAPDAMIN_FLAG))
-        {
-            MB_CapDAOut_Calibration(arg);
-            CapDA_ClibFlag = CALIB_CLEAR;
-        }
-    break;
+        case 0x0003:
+            //电容DA标定零点满量程
+            if(DAOUTCLIB_ENABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn)
+            {
+                if(0xFF00 == DataBuf)
+                {
+                    CapDA_ClibFlag |= CALIB_CAPDAMAX_FLAG;
+                    Calib_CapDAMax = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                }
+                else
+                {
+                    CapDA_ClibFlag |= CALIB_CAPDAMIN_FLAG;
+                    Calib_CapDAMin = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                }
+            }
+            else
+            {
+                goto __error;
+            }
+        break;
 
-    case 0x0003:
-        //电容DA标定零点满量程
-        if(DAOUTCLIB_ENABLE == Device_Param->PCap_DataConvert->CapDA_ClibEn)
-        {
+        case 0x0004:
+            //温度标定使能
             if(0xFF00 == DataBuf)
             {
-                CapDA_ClibFlag |= CALIB_CAPDAMAX_FLAG;
-                Calib_CapDAMax = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                TempDA_ClibFlag = CALIB_CLEAR;
+                TempDA_ClibEn = DAOUTCLIB_ENABLE;
             }
-            else if(0x0000 == DataBuf)
+            else
             {
-                CapDA_ClibFlag |= CALIB_CAPDAMIN_FLAG;
-                Calib_CapDAMin = Device_Param->PCap_DataConvert_Out->PCapDA_ResultValue;
+                TempDA_ClibEn = DAOUTCLIB_DISABLE;
             }
-        }
-    break;
 
-    case 0x0004:
-        //温度标定使能
-        if(0xFF00 == DataBuf)
-        {
-            TempDA_ClibEn = DAOUTCLIB_ENABLE;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            TempDA_ClibEn = DAOUTCLIB_DISABLE;
-        }
+            if((DAOUTCLIB_DISABLE == TempDA_ClibEn) && (CALIB_TEMPDAEOC_FLAG == TempDA_ClibFlag))
+            {
+                MB_TempDAOut_Calibration(arg);
+                TempDA_ClibFlag = CALIB_CLEAR;
+            }
+        break;
 
-        if((DAOUTCLIB_DISABLE == TempDA_ClibEn) && (CALIB_TEMPDAEOC_FLAG == TempDA_ClibFlag))
-        {
-            MB_TempDAOut_Calibration(arg);
-            TempDA_ClibFlag = CALIB_CLEAR;
-        }
-    break;
+        case 0x0005:
+            //温度标定
+            if(DAOUTCLIB_ENABLE == TempDA_ClibEn)
+            {
+                if(0xFF00 == DataBuf)
+                {
+                    TempDA_ClibFlag |= CALIB_TEMPDAMAX_FLAG;
+                    Calib_TempDAMax = Device_Param->ADC_TemperOut->TemperInAirAD;
+                }
+                else
+                {
+                    TempDA_ClibFlag |= CALIB_TEMPDAMIN_FLAG;
+                    Calib_TempDAMin = Device_Param->ADC_TemperOut->TemperInAirAD;
+                }
+            }
+            else
+            {
+                goto __error;
+            }
+        break;
 
-    case 0x0005:
-        //温度标定
-        if(DAOUTCLIB_ENABLE == TempDA_ClibEn)
-        {
+        case 0x0007:
+            //电容AD标定使能
             if(0xFF00 == DataBuf)
             {
-                TempDA_ClibFlag |= CALIB_TEMPDAMAX_FLAG;
-                Calib_TempDAMax = Device_Param->ADC_TemperOut->TemperInAirAD;
+                CapAD_ClibFlag = CALIB_CLEAR;
+                CapAD_ClibEn = ADCLIB_ENABLE;
             }
-            else if(0x0000 == DataBuf)
+            else
             {
-                TempDA_ClibFlag |= CALIB_TEMPDAMIN_FLAG;
-                Calib_TempDAMin = Device_Param->ADC_TemperOut->TemperInAirAD;
+                CapAD_ClibEn = ADCLIB_DISABLE;
             }
-        }
-    break;
 
-    case 0x0007:
-        //电容AD标定使能
-        if(0xFF00 == DataBuf)
-        {
-            CapAD_ClibFlag = CALIB_CLEAR;
-            CapAD_ClibEn = ADCLIB_ENABLE;
-        }
-        else if(0x0000 == DataBuf)
-        {
-            CapAD_ClibEn = ADCLIB_DISABLE;
-        }
-
-        if((ADCLIB_DISABLE == CapAD_ClibEn) && (CALIB_CAPADEOC_FLAG == CapAD_ClibFlag))
-        {
-            MB_CapAD_Calibration(arg);
-            CapAD_ClibFlag = CALIB_CLEAR;
-        }
-    break;
-
-    case 0x0008:
-        //电容AD标定上下刻度线
-        if(ADCLIB_ENABLE == CapAD_ClibEn)
-        {
-            if(0xFF00 == DataBuf)
+            if((ADCLIB_DISABLE == CapAD_ClibEn) && (CALIB_CAPADEOC_FLAG == CapAD_ClibFlag))
             {
-                Calib_ADHigh = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
-                CapAD_ClibFlag |= CALIB_CAPADHIH_FLAG;
+                MB_CapAD_Calibration(arg);
+                CapAD_ClibFlag = CALIB_CLEAR;
             }
-            else if(0x0000 == DataBuf)
-            {
-                Calib_ADLow = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
-                CapAD_ClibFlag |= CALIB_CAPADLOW_FLAG;
-            }
-        }
-    break;
+        break;
 
-    case 0x0009:
-        //电容AD标定零点满量程
-        if(ADCLIB_ENABLE == CapAD_ClibEn)
-        {
-            if(0xFF00 == DataBuf)
+        case 0x0008:
+            //电容AD标定上下刻度线
+            if(ADCLIB_ENABLE == CapAD_ClibEn)
             {
-                Calib_ADMax = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
-                CapAD_ClibFlag |= CALIB_CAPADMAX_FLAG;
+                if(0xFF00 == DataBuf)
+                {
+                    Calib_ADHigh = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
+                    CapAD_ClibFlag |= CALIB_CAPADHIH_FLAG;
+                }
+                else
+                {
+                    Calib_ADLow = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
+                    CapAD_ClibFlag |= CALIB_CAPADLOW_FLAG;
+                }
             }
-            else if(0x0000 == DataBuf)
+            else
             {
-                Calib_ADMin = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
-                CapAD_ClibFlag |= CALIB_CAPADMIN_FLAG;
+                goto __error;
             }
-        }
-    break;
+        break;
 
-    default:
-        
-    break;
+        case 0x0009:
+            //电容AD标定零点满量程
+            if(ADCLIB_ENABLE == CapAD_ClibEn)
+            {
+                if(0xFF00 == DataBuf)
+                {
+                    Calib_ADMax = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
+                    CapAD_ClibFlag |= CALIB_CAPADMAX_FLAG;
+                }
+                else
+                {
+                    Calib_ADMin = Device_Param->PCap_DataConvert_Out->LiquidHeightAD;
+                    CapAD_ClibFlag |= CALIB_CAPADMIN_FLAG;
+                }
+            }
+            else
+            {
+                goto __error;
+            }
+        break;
+
+        default:
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+            ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+            return;
     }
+    return;
+__error:
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_DEVC_EXCEPTION;
+    ModBusBaseParam->ModBus_TX_RX.Send_Len = 3; 
 }
 
 /**@brief       Modbus 26功能码消息帧处理
@@ -893,6 +975,8 @@ void ModbusFunc26(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     uint16_t ReadAddr;
     //寄存器数量
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     //寄存器数据内容
     uint32_t DataBuf;
     //设备参数
@@ -900,14 +984,11 @@ void ModbusFunc26(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         
     Device_Param = (ModBus_Device_Param *)arg;
     //读预处理
-    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum);
+    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum, &Err_Status);
     //寄存器访问地址无效
-    if(
-#if defined(SUBCODE_IS_DEVADDR)
-        (ReadAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (ReadAddr & 0xFF) < DEF_MUL_REG_REGION1_BEGIN 
-        || ((ReadAddr & 0xFF) + RegNum) > (DEF_MUL_REG_REGION1_END + 2)
+    if( Err_Status != OP_SUCCESS 
+        || ReadAddr < DEF_MUL_REG_REGION1_BEGIN 
+        || (ReadAddr + RegNum) > (DEF_MUL_REG_REGION1_END + 2)
         || (RegNum & 0x01) != 0 || (ReadAddr & 0x01) != 0
         || RegNum == 0)
     {
@@ -917,9 +998,6 @@ void ModbusFunc26(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         return;
     }
 
-#if defined(SUBCODE_IS_DEVADDR)
-    ReadAddr &= 0x00FF;
-#endif
     ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++]
         = RegNum * 2;
     for(Nr = 0; Nr < RegNum; Nr += 2, ReadAddr += 2)
@@ -1013,8 +1091,10 @@ void ModbusFunc26(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         break;
           
         default:
-            
-        break;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+            ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+            ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+            return;
         }
 
         for(i = 4; i > 0; i--)
@@ -1042,6 +1122,8 @@ void ModbusFunc27(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     uint16_t WriteAddr;
     //寄存器数量
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     //数据长度
     uint16_t DataLen;
     //设备参数
@@ -1050,7 +1132,7 @@ void ModbusFunc27(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
           
     Device_Param = (ModBus_Device_Param *)arg;    
     //写预处理
-    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum);  
+    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum, &Err_Status);  
     //内部ROM未使能访问失败
     if(IN_MEMORY_WR_ENABLE != ModBusBaseParam->InRomWrEn)
     {
@@ -1063,14 +1145,10 @@ void ModbusFunc27(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
     //数据长度
     DataLen = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6];
     //寄存器访问地址无效
-    if( 
-#if defined(SUBCODE_IS_DEVADDR)
-        (WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (WriteAddr & 0xFF) < DEF_MUL_REG_REGION1_BEGIN 
-        || ((WriteAddr & 0xFF) + RegNum) > (DEF_MUL_REG_REGION1_END + 2)
+    if( Err_Status != OP_SUCCESS 
+        || WriteAddr < DEF_MUL_REG_REGION1_BEGIN 
+        || (WriteAddr + RegNum) > (DEF_MUL_REG_REGION1_END + 2)
         || (RegNum & 0x01) != 0 || (WriteAddr & 0x01) != 0
-        || DataLen != (RegNum * 2)
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -1078,116 +1156,152 @@ void ModbusFunc27(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-    
-#if defined(SUBCODE_IS_DEVADDR)
-    WriteAddr &= 0x00FF;
-#endif
+
     index = 0;
     for(Nr = 0; Nr < RegNum; Nr += 2, WriteAddr += 2)
     {
         fbuf = HexToFloat(&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + index]);
         switch(WriteAddr)
         {
-        case 0x0080:            
-            Device_Param->PCap_DataConvert->CapMax = (uint32_t)fbuf;
-            Device_Param->DataFilter->InputRangeMax = (uint32_t)fbuf;            
-            InMemory_Write3T_MultiBytes(CAPMAX, 
-                                    &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + index], 4);
-        break;
-          
-        case 0x0082:
-            Device_Param->PCap_DataConvert->CapMin = (uint32_t)fbuf;
-            Device_Param->DataFilter->InputRangeMin = (uint32_t)fbuf;
-            InMemory_Write3T_MultiBytes(CAPMIN, 
-                                    &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + index], 4);
-        break;
-
-        case 0x0084:
-            if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapDAMax = (uint16_t)fbuf;              
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAMax >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAMax & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPDAMAX, Cur_Param, 2);
-            }            
-        break;
-               
-        case 0x0086:
-            if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapDAHigh = (uint16_t)fbuf;       
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAHigh >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAHigh & 0xFF;                
-                InMemory_Write3T_MultiBytes(CAPDAHIGH, Cur_Param, 2); 
-            }
-        break;
-          
-        case 0x0088:
-            if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapDALow = (uint16_t)fbuf;          
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapDALow >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapDALow & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPDALOW, Cur_Param, 2); 
-            }      
-        break;
+            case 0x0080:            
+                Device_Param->PCap_DataConvert->CapMax = (uint32_t)fbuf;
+                Device_Param->DataFilter->InputRangeMax = (uint32_t)fbuf;            
+                InMemory_Write3T_MultiBytes(CAPMAX, 
+                                        &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + index], 4);
+            break;
               
-        case 0x008A:
-            if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapDAMin = (uint16_t)fbuf;     
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAMin >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAMin & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPDAMIN, Cur_Param, 2);
-            }     
-        break; 
-          
-        case 0x008C:
-            if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapADMax = (uint16_t)fbuf;    
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapADMax >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapADMax & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPADMAX, Cur_Param, 2);      
-            }            
-        break; 
-               
-        case 0x008E:
-            if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapADHigh = (uint16_t)fbuf;       
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapADHigh >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapADHigh & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPADHIGH, Cur_Param, 2);       
-            }                
-        break; 
-          
-        case 0x0090:
-            if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapADLow = (uint16_t)fbuf;        
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapADLow >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapADLow & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPADLOW, Cur_Param, 2);           
-            }
-        break; 
-               
-        case 0x0092:
-            if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
-            {
-                Device_Param->PCap_DataConvert->CapADMin = (uint16_t)fbuf;        
-                Cur_Param[0] = Device_Param->PCap_DataConvert->CapADMin >> 8;
-                Cur_Param[1] = Device_Param->PCap_DataConvert->CapADMin & 0xFF;
-                InMemory_Write3T_MultiBytes(CAPADMIN, Cur_Param, 2);   
-            }            
-        break;       
+            case 0x0082:
+                Device_Param->PCap_DataConvert->CapMin = (uint32_t)fbuf;
+                Device_Param->DataFilter->InputRangeMin = (uint32_t)fbuf;
+                InMemory_Write3T_MultiBytes(CAPMIN, 
+                                        &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7 + index], 4);
+            break;
 
-        default:
-            
-        break;
+            case 0x0084:
+                if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapDAMax = (uint16_t)fbuf;              
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAMax >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAMax & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPDAMAX, Cur_Param, 2);
+                }            
+                else
+                {
+                    goto __error;
+                }
+            break;
+                   
+            case 0x0086:
+                if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapDAHigh = (uint16_t)fbuf;       
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAHigh >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAHigh & 0xFF;                
+                    InMemory_Write3T_MultiBytes(CAPDAHIGH, Cur_Param, 2); 
+                }
+                else
+                {
+                    goto __error;
+                }
+            break;
+              
+            case 0x0088:
+                if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapDALow = (uint16_t)fbuf;          
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapDALow >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapDALow & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPDALOW, Cur_Param, 2); 
+                }      
+                else
+                {
+                    goto __error;
+                }
+            break;
+                  
+            case 0x008A:
+                if(fbuf <= PCAP_DAC_MAX_VALUE && fbuf >= PCAP_DAC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapDAMin = (uint16_t)fbuf;     
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapDAMin >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapDAMin & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPDAMIN, Cur_Param, 2);
+                }     
+                else
+                {
+                    goto __error;
+                }
+            break; 
+              
+            case 0x008C:
+                if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapADMax = (uint16_t)fbuf;    
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapADMax >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapADMax & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPADMAX, Cur_Param, 2);      
+                }         
+                else
+                {
+                    goto __error;
+                }                
+            break; 
+                   
+            case 0x008E:
+                if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapADHigh = (uint16_t)fbuf;       
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapADHigh >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapADHigh & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPADHIGH, Cur_Param, 2);       
+                }      
+                else
+                {
+                    goto __error;
+                }
+            break; 
+              
+            case 0x0090:
+                if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapADLow = (uint16_t)fbuf;        
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapADLow >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapADLow & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPADLOW, Cur_Param, 2);           
+                }
+                else
+                {
+                    goto __error;
+                }
+            break; 
+                   
+            case 0x0092:
+                if(fbuf <= PCAP_ADC_MAX_VALUE && fbuf >= PCAP_ADC_MIN_VALUE)
+                {
+                    Device_Param->PCap_DataConvert->CapADMin = (uint16_t)fbuf;        
+                    Cur_Param[0] = Device_Param->PCap_DataConvert->CapADMin >> 8;
+                    Cur_Param[1] = Device_Param->PCap_DataConvert->CapADMin & 0xFF;
+                    InMemory_Write3T_MultiBytes(CAPADMIN, Cur_Param, 2);   
+                }   
+                else
+                {
+                    goto __error;
+                }
+            break;       
+
+            default:
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+                ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+                return;
         }
         index += DataLen;
     }
+    return;
+__error:
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_VALU_EXCEPTION;
+    ModBusBaseParam->ModBus_TX_RX.Send_Len = 3; 
 }
 
 /**@brief       Modbus 2A功能码消息帧处理
@@ -1201,10 +1315,12 @@ void ModbusFunc2A(ModBusBaseParam_TypeDef *ModBusBaseParam)
     uint8_t j;
     uint8_t objlen;
     uint16_t RegNum;
+    //错误状态
+    uint8_t Err_Status;
     uint16_t WriteAddr;
 
     //写预处理
-    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum);    
+    ModBus_WritePreHandle(ModBusBaseParam, &WriteAddr, &RegNum, &Err_Status);    
     //内部ROM未使能访问失败
     if(IN_MEMORY_WR_ENABLE != ModBusBaseParam->InRomWrEn)
     {
@@ -1213,12 +1329,9 @@ void ModbusFunc2A(ModBusBaseParam_TypeDef *ModBusBaseParam)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-    if(
-#if defined(SUBCODE_IS_DEVADDR)
-        (WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (WriteAddr & 0xFF) < MUL_VERSION_INF_BEGIN 
-        || ((WriteAddr & 0xFF) + RegNum) > (MUL_VERSION_INF_END + 1)
+    if( Err_Status != OP_SUCCESS 
+        || WriteAddr < MUL_VERSION_INF_BEGIN 
+        || (WriteAddr + RegNum) > (MUL_VERSION_INF_END + 1)
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -1226,89 +1339,86 @@ void ModbusFunc2A(ModBusBaseParam_TypeDef *ModBusBaseParam)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-    
-#if defined(SUBCODE_IS_DEVADDR)
-    WriteAddr &= 0x00FF;
-#endif
 
     j = 6;
     for(i = 0; i < RegNum; i++, WriteAddr++)
     {
-        objlen = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j] + 1;
+        objlen = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j];
         switch(WriteAddr)
         {
-        //机构名称
-        case 0x00E0:            
-            if(0x2F < objlen)
-            {
+            //机构名称
+            case 0x00E0:            
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(ORGANIZATION, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                    
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(ORGANIZATION, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                    
-            j += objlen;
-        break;
-        //产品代号    
-        case 0x00E1:
-            if(0x2F < objlen)
-            {
+            break;
+            //产品代号    
+            case 0x00E1:
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(PRODUCTION, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                               
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(PRODUCTION, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                               
-            j += objlen;
-        break;
-        //硬件版本    
-        case 0x00E2:
-            if(0x2F < objlen)
-            {
+            break;
+            //硬件版本    
+            case 0x00E2:
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(HARDWAREVER, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                  
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(HARDWAREVER, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                  
-            j += objlen;
-        break;
-        //软件版本    
-        case 0x00E3:
-            if(0x2F < objlen)
-            {
+            break;
+            //软件版本    
+            case 0x00E3:
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(SOFTWAREVER, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                  
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(SOFTWAREVER, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                  
-            j += objlen;
-        break;
-        //设备ID    
-        case 0x00E4:
-            if(0x2F < objlen)
-            {
+            break;
+            //设备ID    
+            case 0x00E4:
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(DEVICENUM, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                     
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(DEVICENUM, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                                     
-            j += objlen;
-        break;
-        //客户编码    
-        case 0x00E5:
-            if(0x2F < objlen)
-            {
+            break;
+            //客户编码    
+            case 0x00E5:
+                if(30 < objlen)
+                {
+                    goto __error;
+                }
+                InMemory_Write_MultiBytes(CUSTOMER, 
+                    (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                               
                 j += objlen;
-                break;
-            }
-            InMemory_Write_MultiBytes(CUSTOMER, 
-                (const uint8_t *)&ModBusBaseParam->ModBus_TX_RX.Receive_Buf[j], objlen);                               
-            j += objlen;
-        break;
-            
-        default:
-            
-        break;
+            break;
+                
+            default:
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+                ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+                return;
         }        
     }
+    return;
+__error:
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+    ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_VALU_EXCEPTION;
+    ModBusBaseParam->ModBus_TX_RX.Send_Len = 3; 
 }
 
 /**@brief       Modbus 2B功能码消息帧处理
@@ -1322,16 +1432,15 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
     uint8_t objlen;
     uint16_t RegNum;
     uint16_t ReadAddr;
+    //错误状态
+    uint8_t Err_Status;
 
     //读预处理
-    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum);    
+    ModBus_ReadPreHandle(ModBusBaseParam, &ReadAddr, &RegNum, &Err_Status);    
     
-    if(
-#if defined(SUBCODE_IS_DEVADDR)
-        (ReadAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
-        (ReadAddr & 0xFF) < MUL_VERSION_INF_BEGIN
-        || ((ReadAddr & 0xFF) + RegNum) > (MUL_VERSION_INF_END + 1)
+    if( Err_Status != OP_SUCCESS 
+        || ReadAddr < MUL_VERSION_INF_BEGIN
+        || (ReadAddr + RegNum) > (MUL_VERSION_INF_END + 1)
         || RegNum == 0)
     {
         ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
@@ -1339,10 +1448,7 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
         return;
     }
-    
-#if defined(SUBCODE_IS_DEVADDR)
-    ReadAddr &= 0x00FF;
-#endif
+
     memcpy(&ModBusBaseParam->ModBus_TX_RX.Send_Buf[2], &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[4], 2);
     memcpy(&ModBusBaseParam->ModBus_TX_RX.Send_Buf[4], &ModBusBaseParam->ModBus_TX_RX.Receive_Buf[2], 2);
     ModBusBaseParam->ModBus_TX_RX.Send_Len = 6;
@@ -1350,94 +1456,96 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
     {
         switch(ReadAddr)
         {
-        //机构名称  
-        case 0x00E0:
-            objlen = InMemory_Read_OneByte(ORGANIZATION);                                                       
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((ORGANIZATION + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
-        //产品代号  
-        case 0x00E1:
-            objlen = InMemory_Read_OneByte(PRODUCTION);                                                  
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((PRODUCTION + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
-        //硬件版本  
-        case 0x00E2:
-            objlen = InMemory_Read_OneByte(HARDWAREVER);                                                     
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((HARDWAREVER + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
-        //软件版本 
-        case 0x00E3:                        
-            objlen = InMemory_Read_OneByte(SOFTWAREVER);
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((SOFTWAREVER + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
-        //设备ID  
-        case 0x00E4:
-            objlen = InMemory_Read_OneByte(DEVICENUM);                                                        
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((DEVICENUM + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
-        //客户编码  
-        case 0x00E5:
-            objlen = InMemory_Read_OneByte(CUSTOMER);                                                  
-            ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
-            if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
-            {
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
-                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
-                break;
-            }
-            InMemory_Read_MultiBytes((CUSTOMER + 1), 
-                &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
-            ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
-        break;
+            //机构名称  
+            case 0x00E0:
+                objlen = InMemory_Read_OneByte(ORGANIZATION);                                                       
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((ORGANIZATION + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
+            //产品代号  
+            case 0x00E1:
+                objlen = InMemory_Read_OneByte(PRODUCTION);                                                  
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((PRODUCTION + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
+            //硬件版本  
+            case 0x00E2:
+                objlen = InMemory_Read_OneByte(HARDWAREVER);                                                     
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((HARDWAREVER + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
+            //软件版本 
+            case 0x00E3:                        
+                objlen = InMemory_Read_OneByte(SOFTWAREVER);
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((SOFTWAREVER + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
+            //设备ID  
+            case 0x00E4:
+                objlen = InMemory_Read_OneByte(DEVICENUM);                                                        
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((DEVICENUM + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
+            //客户编码  
+            case 0x00E5:
+                objlen = InMemory_Read_OneByte(CUSTOMER);                                                  
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = objlen;
+                if((objlen > (SEND_SIZE * 2 / 3))||(0 == objlen))
+                {
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len - 1] = 1;
+                    ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = 0;
+                    break;
+                }
+                InMemory_Read_MultiBytes((CUSTOMER + 1), 
+                    &ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len], objlen);
+                ModBusBaseParam->ModBus_TX_RX.Send_Len += objlen;
+            break;
 
-        default:
-            
-        break;
+            default:
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[1] |= MB_REQ_FAILURE;
+                ModBusBaseParam->ModBus_TX_RX.Send_Buf[2] = MB_ADDR_EXCEPTION;
+                ModBusBaseParam->ModBus_TX_RX.Send_Len = 3;
+                return;
         }        
     }
 }
@@ -1447,7 +1555,7 @@ void ModbusFunc2B(ModBusBaseParam_TypeDef *ModBusBaseParam)
 #ifdef BOOT_PROGRAM
 #include "common.h"
 #include "flash_if.h"
-#endif
+#endif // BOOT_PROGRAM
 
 /**@brief       Modbus 41功能码消息帧处理
 * @param[in]    ModBusBaseParam : ModBus处理的基本参数结构体;
@@ -1461,7 +1569,9 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
     
     uint16_t WriteAddr;                     //寄存器地址    
     uint16_t DataLen;                       //数据长度
-    uint16_t packetnum = 0;                 //总包数
+    /* 擦除保存在内部EEPROM的参数标志, 对于STM32L0系列以外的芯片则表示擦除保存在内部FLASH的参数标志 */
+    uint16_t Erase_EEPROM_Flag = 0;         
+    uint16_t packetnum;                     //总包数
     uint16_t packetcnt;                     //包序号
     uint16_t prt;                           //计数
     uint32_t tpcksum;                       //包校验和
@@ -1476,11 +1586,12 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
                 | ModBusBaseParam->ModBus_TX_RX.Receive_Buf[3];
     DataLen = (ModBusBaseParam->ModBus_TX_RX.Receive_Buf[4] << 8)
                 | ModBusBaseParam->ModBus_TX_RX.Receive_Buf[5];
+    
     //寄存器地址无效
     if( 
 #if defined(SUBCODE_IS_DEVADDR)
         (WriteAddr >> 8) != ModBusBaseParam->Device_Addr ||
-#endif
+#endif // defined(SUBCODE_IS_DEVADDR)
         (WriteAddr & 0xFF) < 1 
         || (WriteAddr & 0xFF) > 4
         || (DataLen != (ModBusBaseParam->ModBus_TX_RX.Receive_Len - 6)))
@@ -1504,7 +1615,7 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
 
     switch(WriteAddr)
     {
-        case 0x0001:                                                                                //开始升级      
+        case 0x0001:                                                                        //开始升级      
             ModBusBaseParam->UpgradeWaitTime = -1;        
             if((0 != DataLen) && (2 != DataLen))
             {
@@ -1515,17 +1626,21 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
             {
                 if(DataLen == 2)
                 {
-                    packetnum = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6] * 256 
-                                + ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7];    //获取总包数
+                    Erase_EEPROM_Flag = ModBusBaseParam->ModBus_TX_RX.Receive_Buf[6] * 256 
+                                        + ModBusBaseParam->ModBus_TX_RX.Receive_Buf[7];    //获取擦除标志
                 }
                 ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
             }  
             PacketNum = 0;
             PacketCnt = 0;
 
-            if(packetnum > 0)
-            {           
+            if(Erase_EEPROM_Flag)
+            {         
+            #if defined(STM32F0)                
                 InFlash_Erase_Page(0, 4);
+            #elif defined(STM32L0)
+                InEEPROM_Erase_MultiWord(0, (IN_EEPROM_END - IN_EEPROM_START + 1) / 4);
+            #endif // defined(STM32F0) or defined(STM32L0)
             }
             break;
           
@@ -1618,8 +1733,7 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
                     ModBusBaseParam->UpgradeWaitTime = 0;
                     ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_ERR_NONE;
                 }
-                else if((ModBusBaseParam->ProgErase == ERASE_FLAG)
-                    || (ModBusBaseParam->ProgErase == ERASE_FLAG_NONE))
+                else if(ModBusBaseParam->ProgErase == ERASE_FLAG)
                 {
                     ModBusBaseParam->ModBus_TX_RX.Send_Buf[ModBusBaseParam->ModBus_TX_RX.Send_Len++] = RESPONSE_REC_ERR;
                 }
@@ -1663,7 +1777,7 @@ void ModbusFunc41(ModBusBaseParam_TypeDef *ModBusBaseParam)
         ModBusBaseParam->ModBus_TX_RX.Send_Len = 7;        
         ModBusBaseParam->ModBus_CallBack = MB_System_Reset;
     }
-#endif
+#endif // BOOT_PROGRAM
 }
 
 /* 使用soway上位机升级程序(Boot程序), BOOT_PROGRAM在main.h中定义 */
@@ -1698,7 +1812,6 @@ void ModbusAutoUpload(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
             = (uint8_t)(DataBuf >> ((Nr - 1)*8));
     }
 
-    ModBusBaseParam->ModBus_TX_RX.Send_Len = 7;
     DataBuf = *(uint32_t *)&Device_Param->ADC_TemperOut->TemperInAir;
     for(Nr = 4; Nr > 0; Nr--)
     {
@@ -1715,7 +1828,7 @@ void ModbusAutoUpload(ModBusBaseParam_TypeDef *ModBusBaseParam, void *arg)
                         ModBusBaseParam->ModBus_TX_RX.Send_Buf, 
                         ModBusBaseParam->ModBus_TX_RX.Send_Len,
                         NO_CHECK_ADDRESS);
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
 }
 
 /**@brief       电容标定
@@ -1886,7 +1999,7 @@ static int MB_USART_ReInit(ModBusBaseParam_TypeDef *ModBusBaseParam)
     rt_sem_take(ModBusBaseParam->TX_Lock, RT_WAITING_FOREVER);    //获取信号量
 #else
     while(Sensor_USART_Get_TX_Cplt_Flag() == 0);    //等待串口发送完毕
-#endif
+#endif // USING_RT_THREAD_OS
     
     Sensor_USART_Init(  ModBusBaseParam->BaudRate, 
                         ModBusBaseParam->Parity);
@@ -1894,7 +2007,7 @@ static int MB_USART_ReInit(ModBusBaseParam_TypeDef *ModBusBaseParam)
 /* 使用RT-Thread操作系统,USING_RT_THREAD_OS在main.h中定义 */
 #ifdef USING_RT_THREAD_OS
     rt_sem_release(ModBusBaseParam->TX_Lock);    //释放信号量
-#endif  
+#endif  // USING_RT_THREAD_OS
     return OP_SUCCESS;
 }
 
@@ -1924,7 +2037,7 @@ static int MB_System_Reset(ModBusBaseParam_TypeDef *ModBusBaseParam)
     rt_sem_take(ModBusBaseParam->TX_Lock, RT_WAITING_FOREVER);    //获取信号量
 #else
     while(Sensor_USART_Get_TX_Cplt_Flag() == 0);    //等待串口发送完毕
-#endif
+#endif // USING_RT_THREAD_OS
     
     HAL_NVIC_SystemReset();
     
@@ -1950,7 +2063,7 @@ static int MB_SendData_NoCheck(ModBusBaseParam_TypeDef *ModBusBaseParam)
                         ModBusBaseParam->ModBus_TX_RX.Send_Buf, 
                         ModBusBaseParam->ModBus_TX_RX.Send_Len,
                         NO_CHECK_ADDRESS);
-#endif
+#endif // defined(USING_MODBUS_RTU) or defined(USING_MODBUS_ASCII)
     
     return OP_SUCCESS;
 }

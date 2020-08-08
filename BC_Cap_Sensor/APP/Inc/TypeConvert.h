@@ -54,4 +54,4 @@ void floatToHexArray(float fSource, uint8_t *pu8Temp, uint16_t num);
 */
 uint32_t GetDelExtremeAndAverage(uint32_t Array[], uint32_t ArraySize, uint32_t SortHeadSize, uint32_t SortTailSize);
 
-#endif
+#endif // __TYPECONVERT_H

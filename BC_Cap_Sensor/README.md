@@ -73,6 +73,7 @@ IWG： 封装了初始化和喂狗(看门狗定时器重装载)的API函数，使用时，直接调用这些API
 - USING_MODBUS_RTU----------(使用ModBus RTU协议, 还需要定义USING_UART_TIMEOUT)
 - USING_MODBUS_ASCII--------(使用ModBus ASCII协议, 还需要定义USING_CHARMATCH)
 - SUBCODE_IS_DEVADDR--------(定义ModBus子码为设备地址，不定义则默认为0)
+- AUTOUPLOAD_CYCLE----------(自动上传周期,单位 ms)
 
 ## 注意事项
 

@@ -33,7 +33,7 @@
 #define VREF130ADDR         ((uint16_t*) ((uint32_t) 0x1FF8007E))   ///< 130摄氏度ADC参考值地址
 #define VDD_CALIB           ((uint16_t) (300))
 #define VDD_APPLI           ((uint16_t) (330))
-#endif
+#endif // defined(STM32F0) or defined(STM32L0)
 
 #define AD_GROUP_MAX        10                                  ///< 每个通道采集数量，用户可以自定义
 #define AD_CHANNEL_MAX      AD_CHANNEL_TOTAL                    ///< 使能ADC通道数，用户可以自定义
@@ -70,7 +70,7 @@ struct rt_adc_device_obj {
     ADC_TemperParam_TypeDef ADC_TemperParam;
     ADC_TemperOut_TypeDef   ADC_TemperOut;
 };
-#endif
+#endif // USING_RT_THREAD_OS
 
 #ifdef __IN_MEMORY_APP_H
 
@@ -96,7 +96,7 @@ void Sensor_ADC_TemperParam_Init(ADC_TemperParam_TypeDef *ADC_TemperParam);
 */
 uint8_t Sensor_ADC_TemperParam_Init(ADC_TemperParam_TypeDef *ADC_TemperParam, uint8_t *Param, 
                             uint16_t Param_Size);
-#endif
+#endif // __IN_MEMORY_APP_H
 
 /**@brief       初始化ADC，求出stm32芯片内部温度传感器的温度变化斜率，启动ADC的DMA传输
 * @return       函数执行结果
@@ -133,4 +133,4 @@ void Sensor_ADC_Clean_Updata_Flag(void);
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif // __ADC_APP_H
